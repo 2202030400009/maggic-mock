@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePaper } from "@/context/PaperContext";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Question, TestParams } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
@@ -62,25 +62,25 @@ const gateDASubjects = [
 
 // Define schemas with proper transformations
 const FullSyllabusSchema = z.object({
-  numQuestions: z.string(),
-  duration: z.string(),
+  numQuestions: z.string().transform(val => parseInt(val, 10)),
+  duration: z.string().transform(val => parseInt(val, 10)),
 });
 
 type FullSyllabusFormValues = z.infer<typeof FullSyllabusSchema>;
 
 const SubjectWiseSchema = z.object({
   subject: z.string(),
-  numQuestions: z.string(),
-  duration: z.string(),
+  numQuestions: z.string().transform(val => parseInt(val, 10)),
+  duration: z.string().transform(val => parseInt(val, 10)),
 });
 
 type SubjectWiseFormValues = z.infer<typeof SubjectWiseSchema>;
 
 const MultiSubjectSchema = z.object({
-  numSubjects: z.string(),
+  numSubjects: z.string().transform(val => parseInt(val, 10)),
   subjects: z.array(z.string()).optional(),
-  numQuestions: z.string(),
-  duration: z.string(),
+  numQuestions: z.string().transform(val => parseInt(val, 10)),
+  duration: z.string().transform(val => parseInt(val, 10)),
 });
 
 type MultiSubjectFormValues = z.infer<typeof MultiSubjectSchema>;
@@ -185,20 +185,20 @@ const CreateTest = () => {
       const questions: Question[] = [];
       
       querySnapshot.forEach((doc) => {
-        const data = doc.data();
+        const data = doc.data() as DocumentData;
         questions.push({ 
           id: doc.id, 
-          text: data.text,
-          type: data.type,
-          options: data.options,
-          correctOption: data.correctOption,
-          correctOptions: data.correctOptions,
-          rangeStart: data.rangeStart,
-          rangeEnd: data.rangeEnd,
-          imageUrl: data.imageUrl,
-          marks: data.marks,
-          negativeMark: data.negativeMark,
-          subject: data.subject
+          text: data.text as string,
+          type: data.type as "MCQ" | "MSQ" | "NAT",
+          options: data.options as { id: string; text: string }[],
+          correctOption: data.correctOption as string | undefined,
+          correctOptions: data.correctOptions as string[] | undefined,
+          rangeStart: data.rangeStart as number | undefined,
+          rangeEnd: data.rangeEnd as number | undefined,
+          imageUrl: data.imageUrl as string | undefined,
+          marks: data.marks as number,
+          negativeMark: data.negativeMark as number,
+          subject: data.subject as string
         });
       });
       
