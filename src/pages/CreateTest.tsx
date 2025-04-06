@@ -61,21 +61,21 @@ const gateDASubjects = [
 ];
 
 const FullSyllabusSchema = z.object({
-  numQuestions: z.string().transform(val => parseInt(val)),
-  duration: z.string().transform(val => parseInt(val)),
+  numQuestions: z.string().transform(val => parseInt(val, 10)),
+  duration: z.string().transform(val => parseInt(val, 10)),
 });
 
 const SubjectWiseSchema = z.object({
   subject: z.string(),
-  numQuestions: z.string().transform(val => parseInt(val)),
-  duration: z.string().transform(val => parseInt(val)),
+  numQuestions: z.string().transform(val => parseInt(val, 10)),
+  duration: z.string().transform(val => parseInt(val, 10)),
 });
 
 const MultiSubjectSchema = z.object({
-  numSubjects: z.string().transform(val => parseInt(val)),
+  numSubjects: z.string().transform(val => parseInt(val, 10)),
   subjects: z.array(z.string()).optional(),
-  numQuestions: z.string().transform(val => parseInt(val)),
-  duration: z.string().transform(val => parseInt(val)),
+  numQuestions: z.string().transform(val => parseInt(val, 10)),
+  duration: z.string().transform(val => parseInt(val, 10)),
 });
 
 const CreateTest = () => {
@@ -148,7 +148,7 @@ const CreateTest = () => {
   
   const fetchQuestions = async (
     type: string, 
-    params: any
+    params: Record<string, any>
   ): Promise<Question[]> => {
     try {
       let q;
@@ -208,22 +208,22 @@ const CreateTest = () => {
       
       if (testType === "Full Syllabus") {
         const values = fullSyllabusForm.getValues();
-        numQuestions = values.numQuestions;
-        duration = values.duration;
+        numQuestions = parseInt(values.numQuestions, 10);
+        duration = parseInt(values.duration, 10);
         
         // Fetch all questions for this paper type
         questions = await fetchQuestions(testType, {});
       } else if (testType === "Subject Wise") {
         const values = subjectWiseForm.getValues();
-        numQuestions = values.numQuestions;
-        duration = values.duration;
+        numQuestions = parseInt(values.numQuestions, 10);
+        duration = parseInt(values.duration, 10);
         
         // Fetch questions for the selected subject
         questions = await fetchQuestions(testType, { subject: values.subject });
       } else if (testType === "Multi-Subject Test") {
         const values = multiSubjectForm.getValues();
-        numQuestions = values.numQuestions;
-        duration = values.duration;
+        numQuestions = parseInt(values.numQuestions, 10);
+        duration = parseInt(values.duration, 10);
         
         // Fetch questions for selected subjects
         questions = await fetchQuestions(testType, { subjects: values.subjects });
