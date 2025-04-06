@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -61,7 +60,6 @@ const gateDASubjects = [
 ];
 
 // Define form schemas with proper transformations to handle string-to-number conversions
-// Schema for Full Syllabus form with proper transformations
 const FullSyllabusSchema = z.object({
   numQuestions: z
     .string()
@@ -129,9 +127,8 @@ const CreateTest = () => {
   const fullSyllabusForm = useForm<FullSyllabusFormValues>({
     resolver: zodResolver(FullSyllabusSchema),
     defaultValues: {
-      // Using string values for input fields as they expect strings
-      numQuestions: "65", // Will be transformed to number by schema
-      duration: "180", // Will be transformed to number by schema
+      numQuestions: "65",
+      duration: "180",
     },
   });
   
@@ -139,20 +136,18 @@ const CreateTest = () => {
     resolver: zodResolver(SubjectWiseSchema),
     defaultValues: {
       subject: subjectList[0],
-      // Using string values for input fields as they expect strings
-      numQuestions: "20", // Will be transformed to number by schema
-      duration: "60", // Will be transformed to number by schema
+      numQuestions: "20",
+      duration: "60",
     },
   });
   
   const multiSubjectForm = useForm<MultiSubjectFormValues>({
     resolver: zodResolver(MultiSubjectSchema),
     defaultValues: {
-      // Using string values for input fields as they expect strings
-      numSubjects: "2", // Will be transformed to number by schema
+      numSubjects: "2",
       subjects: [subjectList[0], subjectList[1]],
-      numQuestions: "30", // Will be transformed to number by schema
-      duration: "90", // Will be transformed to number by schema
+      numQuestions: "30",
+      duration: "90",
     },
   });
   
@@ -160,19 +155,15 @@ const CreateTest = () => {
   useEffect(() => {
     if (testType === "Multi-Subject Test") {
       const subjects = multiSubjectForm.getValues("subjects") || [];
-      // Get numSubjects as a number
       const numSubjectsValue = Number(multiSubjectForm.getValues("numSubjects"));
       
-      // Make sure numSubjects is updated with the correct numeric value
       if (numSubjectsValue !== numSubjects) {
         setNumSubjects(numSubjectsValue);
       }
       
-      // Adjust subjects array based on numSubjects
       if (subjects.length !== numSubjects) {
         const newSubjects = [...subjects];
         if (newSubjects.length < numSubjects) {
-          // Add more subjects
           while (newSubjects.length < numSubjects) {
             const availableSubjects = subjectList.filter(
               subject => !newSubjects.includes(subject)
@@ -184,7 +175,6 @@ const CreateTest = () => {
             }
           }
         } else {
-          // Remove excess subjects
           newSubjects.splice(numSubjects);
         }
         multiSubjectForm.setValue("subjects", newSubjects);
@@ -226,7 +216,6 @@ const CreateTest = () => {
       
       querySnapshot.forEach((doc) => {
         const data = doc.data() as DocumentData;
-        // Properly converting document data to Question type with explicit type assertions
         questions.push({ 
           id: doc.id, 
           text: data.text as string,
@@ -270,31 +259,22 @@ const CreateTest = () => {
       let selectedTestType = testType || "";
       
       if (testType === "Full Syllabus") {
-        // Get values from form and use the transformed number values from the schema
         const values = fullSyllabusForm.getValues();
-        // Ensure these are numbers by explicit conversion
         numQuestions = Number(values.numQuestions);
         duration = Number(values.duration);
         
-        // Fetch all questions for this paper type
         questions = await fetchQuestions(testType, {});
       } else if (testType === "Subject Wise") {
-        // Get values from form and use the transformed number values from the schema
         const values = subjectWiseForm.getValues();
-        // Ensure these are numbers by explicit conversion
         numQuestions = Number(values.numQuestions);
         duration = Number(values.duration);
         
-        // Fetch questions for the selected subject
         questions = await fetchQuestions(testType, { subject: values.subject });
       } else if (testType === "Multi-Subject Test") {
-        // Get values from form and use the transformed number values from the schema
         const values = multiSubjectForm.getValues();
-        // Ensure these are numbers by explicit conversion
         numQuestions = Number(values.numQuestions);
         duration = Number(values.duration);
         
-        // Fetch questions for selected subjects
         questions = await fetchQuestions(testType, { subjects: values.subjects });
       }
       
@@ -308,7 +288,6 @@ const CreateTest = () => {
         return;
       }
       
-      // Shuffle questions and select the required number
       const shuffledQuestions = shuffleArray(questions);
       const selectedQuestions = shuffledQuestions.slice(0, numQuestions);
       
@@ -320,17 +299,14 @@ const CreateTest = () => {
         });
       }
       
-      // Create test parameters object with properly typed values
       const testParams: TestParams = {
         questions: selectedQuestions,
-        duration: duration, // Explicitly a number
-        testType: selectedTestType // String
+        duration: duration,
+        testType: selectedTestType
       };
       
-      // Store test parameters in session storage
       sessionStorage.setItem('testParams', JSON.stringify(testParams));
       
-      // Redirect to test page
       navigate('/test/personalized');
     } catch (error) {
       console.error("Error generating test:", error);
@@ -391,7 +367,6 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Number of Questions</FormLabel>
                     <FormControl>
-                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="100" />
                     </FormControl>
                     <FormDescription>
@@ -409,7 +384,6 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Duration (minutes)</FormLabel>
                     <FormControl>
-                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="600" />
                     </FormControl>
                     <FormDescription>
@@ -484,7 +458,6 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Number of Questions</FormLabel>
                     <FormControl>
-                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="50" />
                     </FormControl>
                     <FormMessage />
@@ -499,7 +472,6 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Duration (minutes)</FormLabel>
                     <FormControl>
-                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="120" />
                     </FormControl>
                     <FormDescription>
@@ -548,7 +520,7 @@ const CreateTest = () => {
                     <Select 
                       onValueChange={(value) => {
                         field.onChange(value);
-                        setNumSubjects(Number(value)); // Convert string to number when updating state
+                        setNumSubjects(Number(value));
                       }} 
                       defaultValue={field.value.toString()}
                     >
@@ -606,7 +578,6 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Number of Questions</FormLabel>
                     <FormControl>
-                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="100" />
                     </FormControl>
                     <FormDescription>
@@ -624,7 +595,6 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Duration (minutes)</FormLabel>
                     <FormControl>
-                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="300" />
                     </FormControl>
                     <FormDescription>
