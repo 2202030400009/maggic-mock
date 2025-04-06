@@ -6,42 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePaper } from "@/context/PaperContext";
 import { useToast } from "@/hooks/use-toast";
-import { TestParams } from "@/lib/types";
-import { fetchQuestions, shuffleArray } from "@/utils/test-utils";
+import { FullSyllabusFormValues } from "@/components/test/FullSyllabusForm";
+import { SubjectWiseFormValues } from "@/components/test/SubjectWiseForm";
+import { MultiSubjectFormValues } from "@/components/test/MultiSubjectForm";
+import { gateCSSubjects, gateDASubjects } from "@/constants/subjects";
+import { 
+  generateFullSyllabusTest,
+  generateSubjectWiseTest,
+  generateMultiSubjectTest 
+} from "@/services/testService";
 import TestTypeSelection from "@/components/test/TestTypeSelection";
-import FullSyllabusForm, { FullSyllabusFormValues } from "@/components/test/FullSyllabusForm";
-import SubjectWiseForm, { SubjectWiseFormValues } from "@/components/test/SubjectWiseForm";
-import MultiSubjectForm, { MultiSubjectFormValues } from "@/components/test/MultiSubjectForm";
-
-// GATE CS Subjects
-const gateCSSubjects = [
-  "Aptitude",
-  "Engineering Maths",
-  "Discrete Maths",
-  "Digital Logic",
-  "Computer Organization and Architecture",
-  "Programming and Data Structures",
-  "Algorithms",
-  "Theory of Computation",
-  "Compiler Design",
-  "Operating System",
-  "Database",
-  "Computer Networking",
-];
-
-// GATE DA Subjects
-const gateDASubjects = [
-  "Aptitude",
-  "Linear Algebra",
-  "Calculus",
-  "Probability & Statistics",
-  "Programming and Data Structures",
-  "Algorithms",
-  "Database & Warehousing",
-  "Artificial Intelligence",
-  "Machine Learning",
-  "Deep Learning",
-];
+import FullSyllabusForm from "@/components/test/FullSyllabusForm";
+import SubjectWiseForm from "@/components/test/SubjectWiseForm";
+import MultiSubjectForm from "@/components/test/MultiSubjectForm";
 
 const CreateTest = () => {
   const navigate = useNavigate();
@@ -62,8 +39,15 @@ const CreateTest = () => {
       const numQuestions = values.numQuestions; // Already transformed by zod
       const duration = values.duration; // Already transformed by zod
       
-      const questions = await fetchQuestions("Full Syllabus", paperType || "", {});
-      await processQuestions(questions, numQuestions, duration, "Full Syllabus");
+      const testParams = await generateFullSyllabusTest(paperType || "", numQuestions, duration);
+      
+      if (!testParams) {
+        showNoQuestionsToast();
+        setLoading(false);
+        return;
+      }
+      
+      navigateToTest(testParams);
     } catch (error) {
       handleError(error);
     } finally {
@@ -79,10 +63,20 @@ const CreateTest = () => {
       const numQuestions = values.numQuestions; // Already transformed by zod
       const duration = values.duration; // Already transformed by zod
       
-      const questions = await fetchQuestions("Subject Wise", paperType || "", { 
-        subject: values.subject 
-      });
-      await processQuestions(questions, numQuestions, duration, "Subject Wise");
+      const testParams = await generateSubjectWiseTest(
+        paperType || "", 
+        values.subject,
+        numQuestions,
+        duration
+      );
+      
+      if (!testParams) {
+        showNoQuestionsToast();
+        setLoading(false);
+        return;
+      }
+      
+      navigateToTest(testParams);
     } catch (error) {
       handleError(error);
     } finally {
@@ -98,10 +92,20 @@ const CreateTest = () => {
       const numQuestions = values.numQuestions; // Already transformed by zod
       const duration = values.duration; // Already transformed by zod
       
-      const questions = await fetchQuestions("Multi-Subject Test", paperType || "", {
-        subjects: values.subjects
-      });
-      await processQuestions(questions, numQuestions, duration, "Multi-Subject Test");
+      const testParams = await generateMultiSubjectTest(
+        paperType || "",
+        values.subjects || [],
+        numQuestions,
+        duration
+      );
+      
+      if (!testParams) {
+        showNoQuestionsToast();
+        setLoading(false);
+        return;
+      }
+      
+      navigateToTest(testParams);
     } catch (error) {
       handleError(error);
     } finally {
@@ -117,41 +121,20 @@ const CreateTest = () => {
       description: "Failed to generate test. Please try again.",
       variant: "destructive",
     });
+    setLoading(false);
   };
   
-  // Common function to process questions and navigate
-  const processQuestions = async (
-    questions: any[], 
-    numQuestions: number,
-    duration: number, 
-    selectedTestType: string
-  ) => {
-    if (questions.length === 0) {
-      toast({
-        title: "No questions found",
-        description: "No questions are available for your selected criteria. Please try different options.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const shuffledQuestions = shuffleArray(questions);
-    const selectedQuestions = shuffledQuestions.slice(0, numQuestions);
-    
-    if (selectedQuestions.length < numQuestions) {
-      toast({
-        title: "Warning",
-        description: `Only ${selectedQuestions.length} questions are available for your selection. Proceeding with those.`,
-        variant: "default",
-      });
-    }
-    
-    const testParams: TestParams = {
-      questions: selectedQuestions,
-      duration: duration,
-      testType: selectedTestType
-    };
-    
+  // Show toast for no questions found
+  const showNoQuestionsToast = () => {
+    toast({
+      title: "No questions found",
+      description: "No questions are available for your selected criteria. Please try different options.",
+      variant: "destructive",
+    });
+  };
+  
+  // Navigate to test with parameters
+  const navigateToTest = (testParams: any) => {
     sessionStorage.setItem('testParams', JSON.stringify(testParams));
     navigate('/test/personalized');
   };

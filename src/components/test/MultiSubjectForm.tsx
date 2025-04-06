@@ -51,7 +51,7 @@ interface MultiSubjectFormProps {
 }
 
 const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubjectFormProps) => {
-  const [numSubjects, setNumSubjects] = useState<number>(1);
+  const [numSubjects, setNumSubjects] = useState<number>(2);
   
   const form = useForm<MultiSubjectFormValues>({
     resolver: zodResolver(MultiSubjectSchema),
