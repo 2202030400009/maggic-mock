@@ -246,7 +246,7 @@ const CreateTest = () => {
         toast({
           title: "Warning",
           description: `Only ${selectedQuestions.length} questions are available for your selection. Proceeding with those.`,
-          variant: "warning",
+          variant: "default",
         });
       }
       
