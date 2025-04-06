@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -61,37 +60,58 @@ const gateDASubjects = [
 ];
 
 // Define form schemas with proper transformations to handle string-to-number conversions
-// Verified: This schema correctly transforms string inputs to numbers
+// Schema for Full Syllabus form with proper transformations
 const FullSyllabusSchema = z.object({
-  // Use transform to convert string values to numbers
-  numQuestions: z.string().transform((val) => Number(val)),
-  duration: z.string().transform((val) => Number(val)),
+  // Transform string input values to numbers before validation
+  numQuestions: z
+    .string()
+    .min(1, "Required")
+    .transform((val) => Number(val) || 0),
+  duration: z
+    .string()
+    .min(1, "Required")
+    .transform((val) => Number(val) || 0),
 });
 
-// Properly infer the type with transformed values
+// Properly typed form values derived from schema
 type FullSyllabusFormValues = z.infer<typeof FullSyllabusSchema>;
 
-// Verified: This schema correctly transforms string inputs to numbers
+// Schema for Subject Wise form with proper transformations
 const SubjectWiseSchema = z.object({
   subject: z.string(),
-  // Use transform to convert string values to numbers
-  numQuestions: z.string().transform((val) => Number(val)),
-  duration: z.string().transform((val) => Number(val)),
+  // Transform string input values to numbers before validation
+  numQuestions: z
+    .string()
+    .min(1, "Required")
+    .transform((val) => Number(val) || 0),
+  duration: z
+    .string()
+    .min(1, "Required")
+    .transform((val) => Number(val) || 0),
 });
 
-// Properly infer the type with transformed values
+// Properly typed form values derived from schema
 type SubjectWiseFormValues = z.infer<typeof SubjectWiseSchema>;
 
-// Verified: This schema correctly transforms string inputs to numbers
+// Schema for Multi-Subject form with proper transformations
 const MultiSubjectSchema = z.object({
-  // Use transform to convert string values to numbers
-  numSubjects: z.string().transform((val) => Number(val)),
+  // Transform string input values to numbers before validation
+  numSubjects: z
+    .string()
+    .min(1, "Required")
+    .transform((val) => Number(val) || 0),
   subjects: z.array(z.string()).optional(),
-  numQuestions: z.string().transform((val) => Number(val)),
-  duration: z.string().transform((val) => Number(val)),
+  numQuestions: z
+    .string()
+    .min(1, "Required")
+    .transform((val) => Number(val) || 0),
+  duration: z
+    .string()
+    .min(1, "Required")
+    .transform((val) => Number(val) || 0),
 });
 
-// Properly infer the type with transformed values
+// Properly typed form values derived from schema
 type MultiSubjectFormValues = z.infer<typeof MultiSubjectSchema>;
 
 const CreateTest = () => {
@@ -106,30 +126,30 @@ const CreateTest = () => {
   
   const subjectList = paperType === "GATE CS" ? gateCSSubjects : gateDASubjects;
   
-  // Forms for different test types - Ensuring consistent default values
-  // Verified: Default values are strings since the input elements expect strings
+  // Forms for different test types - Using string default values for form inputs and ensuring types are handled correctly
   const fullSyllabusForm = useForm<FullSyllabusFormValues>({
     resolver: zodResolver(FullSyllabusSchema),
     defaultValues: {
+      // Using string values for input fields as they expect strings
       numQuestions: "65",
       duration: "180",
     },
   });
   
-  // Verified: Default values are strings since the input elements expect strings
   const subjectWiseForm = useForm<SubjectWiseFormValues>({
     resolver: zodResolver(SubjectWiseSchema),
     defaultValues: {
       subject: subjectList[0],
+      // Using string values for input fields as they expect strings
       numQuestions: "20",
       duration: "60",
     },
   });
   
-  // Verified: Default values are strings since the input elements expect strings
   const multiSubjectForm = useForm<MultiSubjectFormValues>({
     resolver: zodResolver(MultiSubjectSchema),
     defaultValues: {
+      // Using string values for input fields as they expect strings
       numSubjects: "2",
       subjects: [subjectList[0], subjectList[1]],
       numQuestions: "30",
@@ -141,9 +161,15 @@ const CreateTest = () => {
   useEffect(() => {
     if (testType === "Multi-Subject Test") {
       const subjects = multiSubjectForm.getValues("subjects") || [];
-      // Verified: numSubjects is correctly typed as number after the form schema transformation
+      const numSubjectsVal = Number(multiSubjectForm.getValues("numSubjects")); // Ensure numSubjects is a number
+      
+      // Make sure numSubjects is updated with the correct numeric value
+      if (numSubjectsVal !== numSubjects) {
+        setNumSubjects(numSubjectsVal);
+      }
+      
+      // Adjust subjects array based on numSubjects
       if (subjects.length !== numSubjects) {
-        // Adjust subjects array based on numSubjects
         const newSubjects = [...subjects];
         if (newSubjects.length < numSubjects) {
           // Add more subjects
@@ -166,7 +192,7 @@ const CreateTest = () => {
     }
   }, [numSubjects, testType, multiSubjectForm, subjectList]);
   
-  // Verified: This function correctly handles all possible return types and type conversions
+  // Function to fetch questions from Firestore with proper type handling
   const fetchQuestions = async (
     type: string, 
     params: Record<string, any>
@@ -200,7 +226,7 @@ const CreateTest = () => {
       
       querySnapshot.forEach((doc) => {
         const data = doc.data() as DocumentData;
-        // Verified: Properly typed conversion from Firestore data to Question type
+        // Properly converting document data to Question type with explicit type assertions
         questions.push({ 
           id: doc.id, 
           text: data.text as string,
@@ -233,7 +259,7 @@ const CreateTest = () => {
     return newArray;
   };
   
-  // Verified: This function properly handles the different form values and their conversions
+  // Function to generate test with proper type handling
   const generateTest = async () => {
     setLoading(true);
     
@@ -244,26 +270,26 @@ const CreateTest = () => {
       let selectedTestType = testType || "";
       
       if (testType === "Full Syllabus") {
-        // Get values from the form (properly transformed to numbers via Zod schema)
+        // Get values from form and ensure they're numbers through schema transformation
         const values = fullSyllabusForm.getValues();
-        numQuestions = values.numQuestions; // Now correctly typed as number after transformation
-        duration = values.duration; // Now correctly typed as number after transformation
+        numQuestions = Number(values.numQuestions); // Ensure it's a number
+        duration = Number(values.duration); // Ensure it's a number
         
         // Fetch all questions for this paper type
         questions = await fetchQuestions(testType, {});
       } else if (testType === "Subject Wise") {
-        // Get values from the form (properly transformed to numbers via Zod schema)
+        // Get values from form and ensure they're numbers through schema transformation
         const values = subjectWiseForm.getValues();
-        numQuestions = values.numQuestions; // Now correctly typed as number after transformation
-        duration = values.duration; // Now correctly typed as number after transformation
+        numQuestions = Number(values.numQuestions); // Ensure it's a number
+        duration = Number(values.duration); // Ensure it's a number
         
         // Fetch questions for the selected subject
         questions = await fetchQuestions(testType, { subject: values.subject });
       } else if (testType === "Multi-Subject Test") {
-        // Get values from the form (properly transformed to numbers via Zod schema)
+        // Get values from form and ensure they're numbers through schema transformation
         const values = multiSubjectForm.getValues();
-        numQuestions = values.numQuestions; // Now correctly typed as number after transformation
-        duration = values.duration; // Now correctly typed as number after transformation
+        numQuestions = Number(values.numQuestions); // Ensure it's a number
+        duration = Number(values.duration); // Ensure it's a number
         
         // Fetch questions for selected subjects
         questions = await fetchQuestions(testType, { subjects: values.subjects });
@@ -291,11 +317,11 @@ const CreateTest = () => {
         });
       }
       
-      // Create test parameters object - Verified: All types match the TestParams interface
+      // Create test parameters object with properly typed values
       const testParams: TestParams = {
         questions: selectedQuestions,
-        duration, // Correctly typed as number
-        testType: selectedTestType // Correctly typed as string
+        duration: duration, // Explicitly a number
+        testType: selectedTestType // String
       };
       
       // Store test parameters in session storage
@@ -362,6 +388,7 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Number of Questions</FormLabel>
                     <FormControl>
+                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="100" />
                     </FormControl>
                     <FormDescription>
@@ -379,6 +406,7 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Duration (minutes)</FormLabel>
                     <FormControl>
+                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="600" />
                     </FormControl>
                     <FormDescription>
@@ -453,6 +481,7 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Number of Questions</FormLabel>
                     <FormControl>
+                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="50" />
                     </FormControl>
                     <FormMessage />
@@ -467,6 +496,7 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Duration (minutes)</FormLabel>
                     <FormControl>
+                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="120" />
                     </FormControl>
                     <FormDescription>
@@ -573,6 +603,7 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Number of Questions</FormLabel>
                     <FormControl>
+                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="100" />
                     </FormControl>
                     <FormDescription>
@@ -590,6 +621,7 @@ const CreateTest = () => {
                   <FormItem>
                     <FormLabel>Duration (minutes)</FormLabel>
                     <FormControl>
+                      {/* Input expects string values */}
                       <Input {...field} type="number" min="1" max="300" />
                     </FormControl>
                     <FormDescription>

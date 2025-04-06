@@ -55,9 +55,9 @@ export interface AdminStats {
   averageScore: number;
 }
 
-// Updated TestParams interface with proper typing
+// Updated TestParams interface to ensure the correct types
 export interface TestParams {
   questions: Question[];
-  duration: number;
-  testType: string;
+  duration: number;  // Explicitly a number type
+  testType: string;  // String type for test type
 }
