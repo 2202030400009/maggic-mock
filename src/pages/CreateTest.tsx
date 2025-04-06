@@ -27,7 +27,7 @@ import {
 import { usePaper } from "@/context/PaperContext";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Question } from "@/lib/types";
+import { Question, TestParams } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 // GATE CS Subjects
@@ -204,6 +204,7 @@ const CreateTest = () => {
       let questions: Question[] = [];
       let numQuestions = 0;
       let duration = 0;
+      let selectedTestType = testType || "";
       
       if (testType === "Full Syllabus") {
         const values = fullSyllabusForm.getValues();
@@ -250,12 +251,15 @@ const CreateTest = () => {
         });
       }
       
-      // Store test parameters in session storage
-      sessionStorage.setItem('testParams', JSON.stringify({
+      // Create test parameters object
+      const testParams: TestParams = {
         questions: selectedQuestions,
         duration,
-        testType
-      }));
+        testType: selectedTestType
+      };
+      
+      // Store test parameters in session storage
+      sessionStorage.setItem('testParams', JSON.stringify(testParams));
       
       // Redirect to test page
       navigate('/test/personalized');

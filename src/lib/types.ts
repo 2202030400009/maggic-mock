@@ -54,3 +54,10 @@ export interface AdminStats {
   totalTests: number;
   averageScore: number;
 }
+
+// Adding TestParams interface to type the test parameters
+export interface TestParams {
+  questions: Question[];
+  duration: number;
+  testType: string;
+}
