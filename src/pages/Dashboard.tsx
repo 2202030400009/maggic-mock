@@ -5,7 +5,8 @@ import { usePaper } from "@/context/PaperContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, FileText, Settings, LogOut } from "lucide-react";
+import { BookOpen, FileText, Settings, LogOut, Shield } from "lucide-react";
+import FeedbackButton from "@/components/FeedbackButton";
 
 const YearPaperCard = ({ year, paperType }: { year: number; paperType: string }) => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const YearPaperCard = ({ year, paperType }: { year: number; paperType: string })
 };
 
 const Dashboard = () => {
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   const { paperType } = usePaper();
   const navigate = useNavigate();
 
@@ -53,6 +54,11 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm font-medium text-gray-700">{paperType}</span>
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
+                <Shield className="h-4 w-4 mr-1" /> Admin
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => signOut()}>
               <LogOut className="h-4 w-4 mr-1" /> Sign Out
             </Button>
@@ -67,6 +73,7 @@ const Dashboard = () => {
               <FileText className="h-6 w-6 mr-2 text-indigo-600" />
               Previous Year Papers
             </h2>
+            <FeedbackButton />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {years.map((year) => (

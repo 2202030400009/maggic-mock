@@ -1,353 +1,603 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { usePaper } from "@/context/PaperContext";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Question } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
+
+// GATE CS Subjects
+const gateCSSubjects = [
+  "Aptitude",
+  "Engineering Maths",
+  "Discrete Maths",
+  "Digital Logic",
+  "Computer Organization and Architecture",
+  "Programming and Data Structures",
+  "Algorithms",
+  "Theory of Computation",
+  "Compiler Design",
+  "Operating System",
+  "Database",
+  "Computer Networking",
+];
+
+// GATE DA Subjects
+const gateDASubjects = [
+  "Aptitude",
+  "Linear Algebra",
+  "Calculus",
+  "Probability & Statistics",
+  "Programming and Data Structures",
+  "Algorithms",
+  "Database & Warehousing",
+  "Artificial Intelligence",
+  "Machine Learning",
+  "Deep Learning",
+];
+
+const FullSyllabusSchema = z.object({
+  numQuestions: z.string().transform(val => parseInt(val)),
+  duration: z.string().transform(val => parseInt(val)),
+});
+
+const SubjectWiseSchema = z.object({
+  subject: z.string(),
+  numQuestions: z.string().transform(val => parseInt(val)),
+  duration: z.string().transform(val => parseInt(val)),
+});
+
+const MultiSubjectSchema = z.object({
+  numSubjects: z.string().transform(val => parseInt(val)),
+  subjects: z.array(z.string()).optional(),
+  numQuestions: z.string().transform(val => parseInt(val)),
+  duration: z.string().transform(val => parseInt(val)),
+});
 
 const CreateTest = () => {
-  const { paperType } = usePaper();
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [testType, setTestType] = useState<string>("");
-  const [numQuestions, setNumQuestions] = useState<number>(65);
-  const [time, setTime] = useState<number>(180);
-  const [subject, setSubject] = useState<string>("");
+  const { paperType } = usePaper();
+  const { toast } = useToast();
+  
+  const [step, setStep] = useState(0);
+  const [testType, setTestType] = useState<string | null>(null);
   const [numSubjects, setNumSubjects] = useState<number>(1);
-  const [subjects, setSubjects] = useState<string[]>([]);
-
-  const getCSSubjects = () => [
-    "Aptitude", 
-    "Engineering Maths", 
-    "Discrete Maths", 
-    "Digital Logic", 
-    "Computer Organization and Architecture", 
-    "Programming and Data Structures", 
-    "Algorithms", 
-    "Theory of Computation", 
-    "Compiler Design", 
-    "Operating System", 
-    "Database", 
-    "Computer Networking"
-  ];
-
-  const getDASubjects = () => [
-    "Aptitude", 
-    "Linear Algebra", 
-    "Calculus", 
-    "Probability & Statistics", 
-    "Programming and Data Structures", 
-    "Algorithms", 
-    "Database & Warehousing", 
-    "Artificial Intelligence", 
-    "Machine Learning", 
-    "Deep Learning"
-  ];
-
-  const getSubjectOptions = () => {
-    return paperType === "GATE CS" ? getCSSubjects() : getDASubjects();
-  };
-
-  const handleNext = () => {
-    if (step < getMaxSteps()) {
-      setStep(step + 1);
-    } else {
-      // Generate test and redirect
-      navigate("/instructions/custom");
+  const [loading, setLoading] = useState(false);
+  
+  const subjectList = paperType === "GATE CS" ? gateCSSubjects : gateDASubjects;
+  
+  // Forms for different test types
+  const fullSyllabusForm = useForm<z.infer<typeof FullSyllabusSchema>>({
+    resolver: zodResolver(FullSyllabusSchema),
+    defaultValues: {
+      numQuestions: "65",
+      duration: "180",
+    },
+  });
+  
+  const subjectWiseForm = useForm<z.infer<typeof SubjectWiseSchema>>({
+    resolver: zodResolver(SubjectWiseSchema),
+    defaultValues: {
+      subject: subjectList[0],
+      numQuestions: "20",
+      duration: "60",
+    },
+  });
+  
+  const multiSubjectForm = useForm<z.infer<typeof MultiSubjectSchema>>({
+    resolver: zodResolver(MultiSubjectSchema),
+    defaultValues: {
+      numSubjects: "2",
+      subjects: [subjectList[0], subjectList[1]],
+      numQuestions: "30",
+      duration: "90",
+    },
+  });
+  
+  // Update form based on number of subjects
+  useEffect(() => {
+    if (testType === "Multi-Subject Test") {
+      const subjects = multiSubjectForm.getValues("subjects") || [];
+      if (subjects.length !== numSubjects) {
+        // Adjust subjects array based on numSubjects
+        const newSubjects = [...subjects];
+        if (newSubjects.length < numSubjects) {
+          // Add more subjects
+          while (newSubjects.length < numSubjects) {
+            const availableSubjects = subjectList.filter(
+              subject => !newSubjects.includes(subject)
+            );
+            if (availableSubjects.length > 0) {
+              newSubjects.push(availableSubjects[0]);
+            } else {
+              break;
+            }
+          }
+        } else {
+          // Remove excess subjects
+          newSubjects.splice(numSubjects);
+        }
+        multiSubjectForm.setValue("subjects", newSubjects);
+      }
+    }
+  }, [numSubjects, testType, multiSubjectForm, subjectList]);
+  
+  const fetchQuestions = async (
+    type: string, 
+    params: any
+  ): Promise<Question[]> => {
+    try {
+      let q;
+      
+      if (type === "Full Syllabus") {
+        q = query(
+          collection(db, "questions"),
+          where("paperType", "==", paperType)
+        );
+      } else if (type === "Subject Wise") {
+        q = query(
+          collection(db, "questions"),
+          where("paperType", "==", paperType),
+          where("subject", "==", params.subject)
+        );
+      } else if (type === "Multi-Subject Test") {
+        q = query(
+          collection(db, "questions"),
+          where("paperType", "==", paperType),
+          where("subject", "in", params.subjects)
+        );
+      } else {
+        return [];
+      }
+      
+      const querySnapshot = await getDocs(q);
+      const questions: Question[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        questions.push({ id: doc.id, ...doc.data() } as Question);
+      });
+      
+      return questions;
+    } catch (error) {
+      console.error("Error fetching questions:", error);
+      throw error;
     }
   };
-
-  const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    } else {
-      navigate("/dashboard");
+  
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  };
+  
+  const generateTest = async () => {
+    setLoading(true);
+    
+    try {
+      let questions: Question[] = [];
+      let numQuestions = 0;
+      let duration = 0;
+      
+      if (testType === "Full Syllabus") {
+        const values = fullSyllabusForm.getValues();
+        numQuestions = values.numQuestions;
+        duration = values.duration;
+        
+        // Fetch all questions for this paper type
+        questions = await fetchQuestions(testType, {});
+      } else if (testType === "Subject Wise") {
+        const values = subjectWiseForm.getValues();
+        numQuestions = values.numQuestions;
+        duration = values.duration;
+        
+        // Fetch questions for the selected subject
+        questions = await fetchQuestions(testType, { subject: values.subject });
+      } else if (testType === "Multi-Subject Test") {
+        const values = multiSubjectForm.getValues();
+        numQuestions = values.numQuestions;
+        duration = values.duration;
+        
+        // Fetch questions for selected subjects
+        questions = await fetchQuestions(testType, { subjects: values.subjects });
+      }
+      
+      if (questions.length === 0) {
+        toast({
+          title: "No questions found",
+          description: "No questions are available for your selected criteria. Please try different options.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Shuffle questions and select the required number
+      const shuffledQuestions = shuffleArray(questions);
+      const selectedQuestions = shuffledQuestions.slice(0, numQuestions);
+      
+      if (selectedQuestions.length < numQuestions) {
+        toast({
+          title: "Warning",
+          description: `Only ${selectedQuestions.length} questions are available for your selection. Proceeding with those.`,
+          variant: "warning",
+        });
+      }
+      
+      // Store test parameters in session storage
+      sessionStorage.setItem('testParams', JSON.stringify({
+        questions: selectedQuestions,
+        duration,
+        testType
+      }));
+      
+      // Redirect to test page
+      navigate('/test/personalized');
+    } catch (error) {
+      console.error("Error generating test:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate test. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
-
-  const getMaxSteps = () => {
-    if (testType === "Full Syllabus") return 3;
-    if (testType === "Subject Wise") return 4;
-    if (testType === "Multi-Subject Test") return 5;
-    return 1;
-  };
-
-  const handleSubjectSelection = (index: number, value: string) => {
-    const newSubjects = [...subjects];
-    newSubjects[index] = value;
-    setSubjects(newSubjects);
-  };
-
-  // Auto-adjust time based on number of questions
-  const updateTime = (questions: number) => {
-    setTime(questions * 3); // 3 minutes per question
+  
+  const renderStep = () => {
+    if (step === 0) {
+      return (
+        <div className="text-center space-y-8 max-w-md mx-auto">
+          <h2 className="text-2xl font-bold text-gray-800">
+            What type of test would you like to generate?
+          </h2>
+          
+          <div className="grid gap-4">
+            {["Full Syllabus", "Subject Wise", "Multi-Subject Test"].map((type) => (
+              <Button
+                key={type}
+                variant={testType === type ? "default" : "outline"}
+                className={`w-full py-6 text-lg ${testType === type ? "bg-indigo-600 hover:bg-indigo-700" : ""}`}
+                onClick={() => setTestType(type)}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
+          
+          <Button
+            className="bg-indigo-600 hover:bg-indigo-700 w-full"
+            size="lg"
+            disabled={!testType}
+            onClick={() => setStep(1)}
+          >
+            Next <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+      );
+    } else if (step === 1) {
+      if (testType === "Full Syllabus") {
+        return (
+          <Form {...fullSyllabusForm}>
+            <form onSubmit={fullSyllabusForm.handleSubmit(generateTest)} className="space-y-6">
+              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+                Full Syllabus Test
+              </h2>
+              
+              <FormField
+                control={fullSyllabusForm.control}
+                name="numQuestions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number of Questions</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="1" max="100" />
+                    </FormControl>
+                    <FormDescription>
+                      Recommended: 65 questions for full syllabus test
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={fullSyllabusForm.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (minutes)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="1" max="600" />
+                    </FormControl>
+                    <FormDescription>
+                      Recommended: 3 minutes per question (180 minutes total)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={() => setStep(0)}>
+                  <ArrowLeft className="mr-1 h-4 w-4" /> Back
+                </Button>
+                <Button 
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating
+                    </>
+                  ) : (
+                    <>Generate Test</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        );
+      } else if (testType === "Subject Wise") {
+        return (
+          <Form {...subjectWiseForm}>
+            <form onSubmit={subjectWiseForm.handleSubmit(generateTest)} className="space-y-6">
+              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+                Subject Wise Test
+              </h2>
+              
+              <FormField
+                control={subjectWiseForm.control}
+                name="subject"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Subject</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a subject" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {subjectList.map((subject) => (
+                          <SelectItem key={subject} value={subject}>
+                            {subject}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={subjectWiseForm.control}
+                name="numQuestions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number of Questions</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="1" max="50" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={subjectWiseForm.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (minutes)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="1" max="120" />
+                    </FormControl>
+                    <FormDescription>
+                      Recommended: 3 minutes per question
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={() => setStep(0)}>
+                  <ArrowLeft className="mr-1 h-4 w-4" /> Back
+                </Button>
+                <Button 
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating
+                    </>
+                  ) : (
+                    <>Generate Test</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        );
+      } else if (testType === "Multi-Subject Test") {
+        return (
+          <Form {...multiSubjectForm}>
+            <form onSubmit={multiSubjectForm.handleSubmit(generateTest)} className="space-y-6">
+              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+                Multi-Subject Test
+              </h2>
+              
+              <FormField
+                control={multiSubjectForm.control}
+                name="numSubjects"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number of Subjects</FormLabel>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setNumSubjects(parseInt(value));
+                      }} 
+                      defaultValue={field.value.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select number of subjects" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="1">1 Subject</SelectItem>
+                        <SelectItem value="2">2 Subjects</SelectItem>
+                        <SelectItem value="3">3 Subjects</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {Array.from({ length: numSubjects }).map((_, index) => (
+                <FormField
+                  key={index}
+                  control={multiSubjectForm.control}
+                  name={`subjects.${index}`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subject {index + 1}</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={`Select subject ${index + 1}`} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {subjectList.map((subject) => (
+                            <SelectItem key={subject} value={subject}>
+                              {subject}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ))}
+              
+              <FormField
+                control={multiSubjectForm.control}
+                name="numQuestions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number of Questions</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="1" max="100" />
+                    </FormControl>
+                    <FormDescription>
+                      Questions will be distributed evenly among subjects
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={multiSubjectForm.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration (minutes)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" min="1" max="300" />
+                    </FormControl>
+                    <FormDescription>
+                      Recommended: 3 minutes per question
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" onClick={() => setStep(0)}>
+                  <ArrowLeft className="mr-1 h-4 w-4" /> Back
+                </Button>
+                <Button 
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating
+                    </>
+                  ) : (
+                    <>Generate Test</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        );
+      }
+    }
+    
+    return null;
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <BookOpen className="h-6 w-6 text-indigo-600" />
-            <h1 className="text-xl font-bold">Create Test</h1>
-          </div>
-          <span className="text-sm font-medium text-gray-700">{paperType}</span>
+          <h1 className="text-xl font-bold">Create Personalized Test</h1>
+          <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+          </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 flex items-center justify-center">
-        <Card className="w-full max-w-md">
+      <main className="container mx-auto px-4 py-8">
+        <Card className="max-w-2xl mx-auto">
           <CardContent className="pt-6">
-            <div className="text-xs text-gray-500 mb-4">
-              Step {step} of {getMaxSteps()}
-            </div>
-
-            {step === 1 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">What type of test would you like to generate?</h2>
-                <Select value={testType} onValueChange={setTestType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select test type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Full Syllabus">Full Syllabus</SelectItem>
-                    <SelectItem value="Subject Wise">Subject Wise</SelectItem>
-                    <SelectItem value="Multi-Subject Test">Multi-Subject Test</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {step === 2 && testType === "Full Syllabus" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Configure your test</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Number of Questions</label>
-                    <Input 
-                      type="number" 
-                      value={numQuestions} 
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setNumQuestions(value);
-                        updateTime(value);
-                      }} 
-                      min={1}
-                      max={100}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Recommended: 65 questions</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Time (minutes)</label>
-                    <Input 
-                      type="number" 
-                      value={time} 
-                      onChange={(e) => setTime(parseInt(e.target.value))} 
-                      min={1}
-                      max={300}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Recommended: 3 minutes per question</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {step === 2 && testType === "Subject Wise" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Select a subject</h2>
-                <Select value={subject} onValueChange={setSubject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getSubjectOptions().map((sub) => (
-                      <SelectItem key={sub} value={sub}>
-                        {sub}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {step === 2 && testType === "Multi-Subject Test" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">How many subjects?</h2>
-                <Select 
-                  value={numSubjects.toString()} 
-                  onValueChange={(val) => {
-                    const num = parseInt(val);
-                    setNumSubjects(num);
-                    setSubjects(Array(num).fill(""));
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select number of subjects" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 Subject</SelectItem>
-                    <SelectItem value="2">2 Subjects</SelectItem>
-                    <SelectItem value="3">3 Subjects</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {step === 3 && testType === "Subject Wise" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Configure your test</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Number of Questions</label>
-                    <Input 
-                      type="number" 
-                      value={numQuestions} 
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setNumQuestions(value);
-                        updateTime(value);
-                      }}
-                      min={1}
-                      max={30}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Time (minutes)</label>
-                    <Input 
-                      type="number" 
-                      value={time} 
-                      onChange={(e) => setTime(parseInt(e.target.value))}
-                      min={1}
-                      max={120}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && testType === "Multi-Subject Test" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Select subjects</h2>
-                <div className="space-y-3">
-                  {Array(numSubjects).fill(0).map((_, index) => (
-                    <Select 
-                      key={index}
-                      value={subjects[index] || ""}
-                      onValueChange={(value) => handleSubjectSelection(index, value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={`Select subject ${index + 1}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getSubjectOptions().map((sub) => (
-                          <SelectItem 
-                            key={sub} 
-                            value={sub}
-                            disabled={subjects.includes(sub) && subjects[index] !== sub}
-                          >
-                            {sub}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 3 && testType === "Full Syllabus" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Ready to begin</h2>
-                <p>Your full syllabus test is ready with the following configuration:</p>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <ul className="space-y-2">
-                    <li>• Questions: {numQuestions}</li>
-                    <li>• Time: {time} minutes</li>
-                    <li>• Paper Type: {paperType}</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {step === 4 && testType === "Subject Wise" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Ready to begin</h2>
-                <p>Your subject-specific test is ready with the following configuration:</p>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <ul className="space-y-2">
-                    <li>• Subject: {subject}</li>
-                    <li>• Questions: {numQuestions}</li>
-                    <li>• Time: {time} minutes</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {step === 4 && testType === "Multi-Subject Test" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Configure your test</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Number of Questions</label>
-                    <Input 
-                      type="number" 
-                      value={numQuestions} 
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setNumQuestions(value);
-                        updateTime(value);
-                      }}
-                      min={1}
-                      max={60}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Time (minutes)</label>
-                    <Input 
-                      type="number" 
-                      value={time} 
-                      onChange={(e) => setTime(parseInt(e.target.value))}
-                      min={1}
-                      max={180}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {step === 5 && testType === "Multi-Subject Test" && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Ready to begin</h2>
-                <p>Your multi-subject test is ready with the following configuration:</p>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <ul className="space-y-2">
-                    <li>• Subjects: {subjects.join(", ")}</li>
-                    <li>• Questions: {numQuestions}</li>
-                    <li>• Time: {time} minutes</li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-between mt-8">
-              <Button variant="outline" onClick={handleBack}>
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                {step === 1 ? "Back to Dashboard" : "Previous"}
-              </Button>
-              <Button 
-                onClick={handleNext}
-                disabled={(step === 1 && !testType) || 
-                         (step === 2 && testType === "Subject Wise" && !subject) ||
-                         (step === 3 && testType === "Multi-Subject Test" && subjects.some(s => !s))}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                {step === getMaxSteps() ? "Start Test" : "Next"}
-                {step !== getMaxSteps() && <ArrowRight className="ml-1 h-4 w-4" />}
-              </Button>
-            </div>
+            {renderStep()}
           </CardContent>
         </Card>
       </main>
