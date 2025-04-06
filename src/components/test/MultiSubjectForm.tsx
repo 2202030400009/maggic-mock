@@ -2,14 +2,11 @@
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -22,26 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-// Schema for Multi-Subject form with proper transformations
-const MultiSubjectSchema = z.object({
-  numSubjects: z
-    .string()
-    .min(1, "Required")
-    .transform((val) => Number(val)),
-  subjects: z.array(z.string()).optional(),
-  numQuestions: z
-    .string()
-    .min(1, "Required")
-    .transform((val) => Number(val)),
-  duration: z
-    .string()
-    .min(1, "Required")
-    .transform((val) => Number(val)),
-});
-
-// Properly typed form values derived from schema
-export type MultiSubjectFormValues = z.infer<typeof MultiSubjectSchema>;
+import SubjectSelector from "./SubjectSelector";
+import TestFormField from "./TestFormField";
+import { MultiSubjectSchema, MultiSubjectFormValues } from "./schemas/multiSubjectSchema";
 
 interface MultiSubjectFormProps {
   onSubmit: (values: MultiSubjectFormValues) => void;
@@ -129,68 +109,32 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
         />
         
         {Array.from({ length: numSubjects }).map((_, index) => (
-          <FormField
-            key={index}
-            control={form.control}
-            name={`subjects.${index}`}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Subject {index + 1}</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={`Select subject ${index + 1}`} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {subjectList.map((subject) => (
-                      <SelectItem key={subject} value={subject}>
-                        {subject}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+          <SubjectSelector 
+            key={index} 
+            control={form.control} 
+            subjectList={subjectList} 
+            index={index} 
           />
         ))}
         
-        <FormField
+        <TestFormField
           control={form.control}
           name="numQuestions"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Number of Questions</FormLabel>
-              <FormControl>
-                <Input {...field} type="number" min="1" max="100" />
-              </FormControl>
-              <FormDescription>
-                Questions will be distributed evenly among subjects
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Number of Questions"
+          description="Questions will be distributed evenly among subjects"
+          type="number"
+          min="1"
+          max="100"
         />
         
-        <FormField
+        <TestFormField
           control={form.control}
           name="duration"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Duration (minutes)</FormLabel>
-              <FormControl>
-                <Input {...field} type="number" min="1" max="300" />
-              </FormControl>
-              <FormDescription>
-                Recommended: 3 minutes per question
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+          label="Duration (minutes)"
+          description="Recommended: 3 minutes per question"
+          type="number"
+          min="1"
+          max="300"
         />
         
         <div className="flex justify-between pt-4">
