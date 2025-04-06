@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -62,15 +63,14 @@ const gateDASubjects = [
 // Define form schemas with proper transformations to handle string-to-number conversions
 // Schema for Full Syllabus form with proper transformations
 const FullSyllabusSchema = z.object({
-  // Transform string input values to numbers before validation
   numQuestions: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val) || 0),
+    .transform((val) => Number(val)),
   duration: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val) || 0),
+    .transform((val) => Number(val)),
 });
 
 // Properly typed form values derived from schema
@@ -79,15 +79,14 @@ type FullSyllabusFormValues = z.infer<typeof FullSyllabusSchema>;
 // Schema for Subject Wise form with proper transformations
 const SubjectWiseSchema = z.object({
   subject: z.string(),
-  // Transform string input values to numbers before validation
   numQuestions: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val) || 0),
+    .transform((val) => Number(val)),
   duration: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val) || 0),
+    .transform((val) => Number(val)),
 });
 
 // Properly typed form values derived from schema
@@ -95,20 +94,19 @@ type SubjectWiseFormValues = z.infer<typeof SubjectWiseSchema>;
 
 // Schema for Multi-Subject form with proper transformations
 const MultiSubjectSchema = z.object({
-  // Transform string input values to numbers before validation
   numSubjects: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val) || 0),
+    .transform((val) => Number(val)),
   subjects: z.array(z.string()).optional(),
   numQuestions: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val) || 0),
+    .transform((val) => Number(val)),
   duration: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val) || 0),
+    .transform((val) => Number(val)),
 });
 
 // Properly typed form values derived from schema
@@ -126,13 +124,14 @@ const CreateTest = () => {
   
   const subjectList = paperType === "GATE CS" ? gateCSSubjects : gateDASubjects;
   
-  // Forms for different test types - Using string default values for form inputs and ensuring types are handled correctly
+  // Forms for different test types - Using string default values for inputs 
+  // as they expect strings, but the schema transforms them to numbers
   const fullSyllabusForm = useForm<FullSyllabusFormValues>({
     resolver: zodResolver(FullSyllabusSchema),
     defaultValues: {
       // Using string values for input fields as they expect strings
-      numQuestions: "65",
-      duration: "180",
+      numQuestions: "65", // Will be transformed to number by schema
+      duration: "180", // Will be transformed to number by schema
     },
   });
   
@@ -141,8 +140,8 @@ const CreateTest = () => {
     defaultValues: {
       subject: subjectList[0],
       // Using string values for input fields as they expect strings
-      numQuestions: "20",
-      duration: "60",
+      numQuestions: "20", // Will be transformed to number by schema
+      duration: "60", // Will be transformed to number by schema
     },
   });
   
@@ -150,10 +149,10 @@ const CreateTest = () => {
     resolver: zodResolver(MultiSubjectSchema),
     defaultValues: {
       // Using string values for input fields as they expect strings
-      numSubjects: "2",
+      numSubjects: "2", // Will be transformed to number by schema
       subjects: [subjectList[0], subjectList[1]],
-      numQuestions: "30",
-      duration: "90",
+      numQuestions: "30", // Will be transformed to number by schema
+      duration: "90", // Will be transformed to number by schema
     },
   });
   
@@ -161,11 +160,12 @@ const CreateTest = () => {
   useEffect(() => {
     if (testType === "Multi-Subject Test") {
       const subjects = multiSubjectForm.getValues("subjects") || [];
-      const numSubjectsVal = Number(multiSubjectForm.getValues("numSubjects")); // Ensure numSubjects is a number
+      // Get numSubjects as a number
+      const numSubjectsValue = Number(multiSubjectForm.getValues("numSubjects"));
       
       // Make sure numSubjects is updated with the correct numeric value
-      if (numSubjectsVal !== numSubjects) {
-        setNumSubjects(numSubjectsVal);
+      if (numSubjectsValue !== numSubjects) {
+        setNumSubjects(numSubjectsValue);
       }
       
       // Adjust subjects array based on numSubjects
@@ -270,26 +270,29 @@ const CreateTest = () => {
       let selectedTestType = testType || "";
       
       if (testType === "Full Syllabus") {
-        // Get values from form and ensure they're numbers through schema transformation
+        // Get values from form and use the transformed number values from the schema
         const values = fullSyllabusForm.getValues();
-        numQuestions = Number(values.numQuestions); // Ensure it's a number
-        duration = Number(values.duration); // Ensure it's a number
+        // These will be numbers after Zod transformation
+        numQuestions = Number(values.numQuestions);
+        duration = Number(values.duration);
         
         // Fetch all questions for this paper type
         questions = await fetchQuestions(testType, {});
       } else if (testType === "Subject Wise") {
-        // Get values from form and ensure they're numbers through schema transformation
+        // Get values from form and use the transformed number values from the schema
         const values = subjectWiseForm.getValues();
-        numQuestions = Number(values.numQuestions); // Ensure it's a number
-        duration = Number(values.duration); // Ensure it's a number
+        // These will be numbers after Zod transformation
+        numQuestions = Number(values.numQuestions);
+        duration = Number(values.duration);
         
         // Fetch questions for the selected subject
         questions = await fetchQuestions(testType, { subject: values.subject });
       } else if (testType === "Multi-Subject Test") {
-        // Get values from form and ensure they're numbers through schema transformation
+        // Get values from form and use the transformed number values from the schema
         const values = multiSubjectForm.getValues();
-        numQuestions = Number(values.numQuestions); // Ensure it's a number
-        duration = Number(values.duration); // Ensure it's a number
+        // These will be numbers after Zod transformation
+        numQuestions = Number(values.numQuestions);
+        duration = Number(values.duration);
         
         // Fetch questions for selected subjects
         questions = await fetchQuestions(testType, { subjects: values.subjects });
