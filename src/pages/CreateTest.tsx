@@ -59,8 +59,8 @@ const CreateTest = () => {
     setLoading(true);
     
     try {
-      const numQuestions = Number(values.numQuestions);
-      const duration = Number(values.duration);
+      const numQuestions = values.numQuestions; // Already transformed by zod
+      const duration = values.duration; // Already transformed by zod
       
       const questions = await fetchQuestions("Full Syllabus", paperType || "", {});
       await processQuestions(questions, numQuestions, duration, "Full Syllabus");
@@ -76,8 +76,8 @@ const CreateTest = () => {
     setLoading(true);
     
     try {
-      const numQuestions = Number(values.numQuestions);
-      const duration = Number(values.duration);
+      const numQuestions = values.numQuestions; // Already transformed by zod
+      const duration = values.duration; // Already transformed by zod
       
       const questions = await fetchQuestions("Subject Wise", paperType || "", { 
         subject: values.subject 
@@ -95,8 +95,8 @@ const CreateTest = () => {
     setLoading(true);
     
     try {
-      const numQuestions = Number(values.numQuestions);
-      const duration = Number(values.duration);
+      const numQuestions = values.numQuestions; // Already transformed by zod
+      const duration = values.duration; // Already transformed by zod
       
       const questions = await fetchQuestions("Multi-Subject Test", paperType || "", {
         subjects: values.subjects
