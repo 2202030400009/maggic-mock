@@ -1,4 +1,3 @@
-
 export type QuestionType = "MCQ" | "MSQ" | "NAT";
 
 export interface Option {

@@ -272,7 +272,7 @@ const CreateTest = () => {
       if (testType === "Full Syllabus") {
         // Get values from form and use the transformed number values from the schema
         const values = fullSyllabusForm.getValues();
-        // These will be numbers after Zod transformation
+        // Ensure these are numbers by explicit conversion
         numQuestions = Number(values.numQuestions);
         duration = Number(values.duration);
         
@@ -281,7 +281,7 @@ const CreateTest = () => {
       } else if (testType === "Subject Wise") {
         // Get values from form and use the transformed number values from the schema
         const values = subjectWiseForm.getValues();
-        // These will be numbers after Zod transformation
+        // Ensure these are numbers by explicit conversion
         numQuestions = Number(values.numQuestions);
         duration = Number(values.duration);
         
@@ -290,7 +290,7 @@ const CreateTest = () => {
       } else if (testType === "Multi-Subject Test") {
         // Get values from form and use the transformed number values from the schema
         const values = multiSubjectForm.getValues();
-        // These will be numbers after Zod transformation
+        // Ensure these are numbers by explicit conversion
         numQuestions = Number(values.numQuestions);
         duration = Number(values.duration);
         
