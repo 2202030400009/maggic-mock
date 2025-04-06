@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -184,7 +185,21 @@ const CreateTest = () => {
       const questions: Question[] = [];
       
       querySnapshot.forEach((doc) => {
-        questions.push({ id: doc.id, ...doc.data() } as Question);
+        const data = doc.data();
+        questions.push({ 
+          id: doc.id, 
+          text: data.text,
+          type: data.type,
+          options: data.options,
+          correctOption: data.correctOption,
+          correctOptions: data.correctOptions,
+          rangeStart: data.rangeStart,
+          rangeEnd: data.rangeEnd,
+          imageUrl: data.imageUrl,
+          marks: data.marks,
+          negativeMark: data.negativeMark,
+          subject: data.subject
+        });
       });
       
       return questions;
