@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -60,23 +59,30 @@ const gateDASubjects = [
   "Deep Learning",
 ];
 
+// Define schemas with proper transformations
 const FullSyllabusSchema = z.object({
-  numQuestions: z.string().transform(val => parseInt(val, 10)),
-  duration: z.string().transform(val => parseInt(val, 10)),
+  numQuestions: z.string(),
+  duration: z.string(),
 });
+
+type FullSyllabusFormValues = z.infer<typeof FullSyllabusSchema>;
 
 const SubjectWiseSchema = z.object({
   subject: z.string(),
-  numQuestions: z.string().transform(val => parseInt(val, 10)),
-  duration: z.string().transform(val => parseInt(val, 10)),
+  numQuestions: z.string(),
+  duration: z.string(),
 });
 
+type SubjectWiseFormValues = z.infer<typeof SubjectWiseSchema>;
+
 const MultiSubjectSchema = z.object({
-  numSubjects: z.string().transform(val => parseInt(val, 10)),
+  numSubjects: z.string(),
   subjects: z.array(z.string()).optional(),
-  numQuestions: z.string().transform(val => parseInt(val, 10)),
-  duration: z.string().transform(val => parseInt(val, 10)),
+  numQuestions: z.string(),
+  duration: z.string(),
 });
+
+type MultiSubjectFormValues = z.infer<typeof MultiSubjectSchema>;
 
 const CreateTest = () => {
   const navigate = useNavigate();
@@ -91,7 +97,7 @@ const CreateTest = () => {
   const subjectList = paperType === "GATE CS" ? gateCSSubjects : gateDASubjects;
   
   // Forms for different test types
-  const fullSyllabusForm = useForm<z.infer<typeof FullSyllabusSchema>>({
+  const fullSyllabusForm = useForm<FullSyllabusFormValues>({
     resolver: zodResolver(FullSyllabusSchema),
     defaultValues: {
       numQuestions: "65",
@@ -99,7 +105,7 @@ const CreateTest = () => {
     },
   });
   
-  const subjectWiseForm = useForm<z.infer<typeof SubjectWiseSchema>>({
+  const subjectWiseForm = useForm<SubjectWiseFormValues>({
     resolver: zodResolver(SubjectWiseSchema),
     defaultValues: {
       subject: subjectList[0],
@@ -108,7 +114,7 @@ const CreateTest = () => {
     },
   });
   
-  const multiSubjectForm = useForm<z.infer<typeof MultiSubjectSchema>>({
+  const multiSubjectForm = useForm<MultiSubjectFormValues>({
     resolver: zodResolver(MultiSubjectSchema),
     defaultValues: {
       numSubjects: "2",
@@ -475,7 +481,7 @@ const CreateTest = () => {
                     <Select 
                       onValueChange={(value) => {
                         field.onChange(value);
-                        setNumSubjects(parseInt(value));
+                        setNumSubjects(parseInt(value, 10));
                       }} 
                       defaultValue={field.value.toString()}
                     >
