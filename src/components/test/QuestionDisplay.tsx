@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Flag } from "lucide-react";
-import { Question } from "@/lib/types";
+import { Question, QuestionType } from "@/lib/types";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface QuestionDisplayProps {
   currentQuestionData: Question;
@@ -29,12 +32,31 @@ const QuestionDisplay = ({
   updateAnswer,
   userAnswers,
 }: QuestionDisplayProps) => {
+  // Get question type badge color
+  const getQuestionTypeBadge = (type: QuestionType) => {
+    switch (type) {
+      case "MCQ":
+        return "bg-blue-100 text-blue-800";
+      case "MSQ":
+        return "bg-purple-100 text-purple-800";
+      case "NAT":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
-        <span className="text-sm font-medium text-gray-500">
-          Question {currentQuestion + 1} • {currentQuestionData.marks} mark{currentQuestionData.marks > 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-gray-500">
+            Question {currentQuestion + 1} • {currentQuestionData.marks} mark{currentQuestionData.marks > 1 ? 's' : ''}
+          </span>
+          <span className={cn("text-xs px-2 py-1 rounded-full font-medium", getQuestionTypeBadge(currentQuestionData.type))}>
+            {currentQuestionData.type}
+          </span>
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -66,30 +88,35 @@ const QuestionDisplay = ({
 
       {currentQuestionData.type === "MCQ" && currentQuestionData.options && (
         <div className="space-y-3">
-          {currentQuestionData.options.map((option) => (
-            <div
-              key={option.id}
-              className={cn(
-                "border rounded-md p-3 cursor-pointer transition-colors",
-                selectedOption === option.id
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-gray-200 hover:border-gray-300"
-              )}
-              onClick={() => handleOptionSelect(option.id)}
-            >
-              <div className="flex items-center">
-                <div className={cn(
-                  "w-6 h-6 rounded-full border flex items-center justify-center mr-3",
-                  selectedOption === option.id 
-                    ? "border-indigo-500 bg-indigo-500 text-white" 
-                    : "border-gray-300"
-                )}>
-                  {option.id.toUpperCase()}
+          <RadioGroup 
+            value={selectedOption || ""} 
+            onValueChange={(value) => handleOptionSelect(value)}
+            className="space-y-3"
+          >
+            {currentQuestionData.options.map((option) => (
+              <div
+                key={option.id}
+                className={cn(
+                  "border rounded-md p-3 transition-colors",
+                  selectedOption === option.id
+                    ? "border-indigo-500 bg-indigo-50"
+                    : "border-gray-200 hover:border-gray-300"
+                )}
+              >
+                <div className="flex items-center">
+                  <RadioGroupItem value={option.id} id={`option-${option.id}`} className="mr-3" />
+                  <Label htmlFor={`option-${option.id}`} className="flex-grow cursor-pointer">
+                    <div className="flex items-center">
+                      <div className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center mr-3">
+                        {option.id.toUpperCase()}
+                      </div>
+                      <span>{option.text}</span>
+                    </div>
+                  </Label>
                 </div>
-                <span>{option.text}</span>
               </div>
-            </div>
-          ))}
+            ))}
+          </RadioGroup>
         </div>
       )}
 
@@ -99,23 +126,33 @@ const QuestionDisplay = ({
             <div
               key={option.id}
               className={cn(
-                "border rounded-md p-3 cursor-pointer transition-colors",
+                "border rounded-md p-3 transition-colors",
                 selectedOptions.includes(option.id)
                   ? "border-indigo-500 bg-indigo-50"
                   : "border-gray-200 hover:border-gray-300"
               )}
-              onClick={() => handleOptionSelect(option.id)}
             >
               <div className="flex items-center">
-                <div className={cn(
-                  "w-6 h-6 rounded border flex items-center justify-center mr-3",
-                  selectedOptions.includes(option.id) 
-                    ? "border-indigo-500 bg-indigo-50 text-indigo-500" 
-                    : "border-gray-300"
-                )}>
-                  {selectedOptions.includes(option.id) && "✓"}
-                </div>
-                <span>{option.text}</span>
+                <Checkbox 
+                  id={`msq-option-${option.id}`}
+                  checked={selectedOptions.includes(option.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      handleOptionSelect(option.id);
+                    } else {
+                      handleOptionSelect(option.id);
+                    }
+                  }}
+                  className="mr-3"
+                />
+                <Label htmlFor={`msq-option-${option.id}`} className="flex-grow cursor-pointer">
+                  <div className="flex items-center">
+                    <div className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center mr-3">
+                      {option.id.toUpperCase()}
+                    </div>
+                    <span>{option.text}</span>
+                  </div>
+                </Label>
               </div>
             </div>
           ))}
@@ -124,8 +161,11 @@ const QuestionDisplay = ({
 
       {currentQuestionData.type === "NAT" && (
         <div className="my-6">
+          <Label htmlFor="nat-answer" className="block mb-2">Enter your numerical answer:</Label>
           <Input
+            id="nat-answer"
             type="number"
+            step="any"
             placeholder="Enter your answer"
             className="max-w-xs"
             value={

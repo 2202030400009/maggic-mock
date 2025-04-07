@@ -29,6 +29,7 @@ const Test = () => {
   const { calculateResults } = useTestResults();
   
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -219,6 +220,12 @@ const Test = () => {
       updated[currentQuestion] = answer;
       return updated;
     });
+    
+    // For NAT questions, update status as attempted when an answer is provided
+    const currentQuestionData = questions[currentQuestion];
+    if (currentQuestionData.type === "NAT" && answer && answer.toString().trim() !== '') {
+      updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+    }
   };
 
   const handleNextQuestion = () => {
@@ -231,6 +238,13 @@ const Test = () => {
     } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
       updateAnswer([...selectedOptions]);
+    } else if (currentQuestionData.type === "NAT") {
+      const answer = userAnswers[currentQuestion];
+      if (answer && answer.toString().trim() !== '') {
+        updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+      } else {
+        updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
+      }
     } else {
       updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     }
@@ -269,6 +283,13 @@ const Test = () => {
     } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
       updateAnswer([...selectedOptions]);
+    } else if (currentQuestionData.type === "NAT") {
+      const answer = userAnswers[currentQuestion];
+      if (answer && answer.toString().trim() !== '') {
+        updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+      } else if (questionStatus[currentQuestion] !== "notVisited") {
+        updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
+      }
     } else if (questionStatus[currentQuestion] !== "notVisited") {
       updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     }
@@ -295,6 +316,9 @@ const Test = () => {
 
   const handleSubmitTest = async () => {
     try {
+      if (submitting) return; // Prevent multiple submissions
+      setSubmitting(true);
+      
       // Calculate results
       const results = calculateResults(questions, userAnswers);
       
@@ -329,25 +353,34 @@ const Test = () => {
           timestamp: serverTimestamp(),
         };
         
-        const docRef = await addDoc(collection(db, "testResponses"), testResponse);
-        
-        // Store results in session storage for the result page
-        sessionStorage.setItem('testResults', JSON.stringify({
-          ...results,
-          testResponseId: docRef.id,
-          questions,
-          userAnswers,
-          questionStatus,
-          timeSpent
-        }));
+        try {
+          const docRef = await addDoc(collection(db, "testResponses"), testResponse);
+          console.log("Test submission successful with ID:", docRef.id);
+          
+          // Store results in session storage for the result page
+          sessionStorage.setItem('testResults', JSON.stringify({
+            ...results,
+            testResponseId: docRef.id,
+            questions,
+            userAnswers,
+            questionStatus,
+            timeSpent,
+            paperType
+          }));
+          
+          // Exit fullscreen
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          }
+          
+          navigate("/result");
+        } catch (error) {
+          console.error("Error submitting test to Firestore:", error);
+          throw error;
+        }
+      } else {
+        throw new Error("No authenticated user found");
       }
-      
-      // Exit fullscreen
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      }
-      
-      navigate("/result");
     } catch (error) {
       console.error("Error submitting test:", error);
       toast({
@@ -355,6 +388,7 @@ const Test = () => {
         description: "Failed to submit test results. Please try again.",
         variant: "destructive",
       });
+      setSubmitting(false);
     }
   };
 
@@ -446,6 +480,7 @@ const Test = () => {
             totalQuestions={questions.length}
             handleNextQuestion={handleNextQuestion}
             handleSkipQuestion={handleSkipQuestion}
+            submitting={submitting}
           />
         </div>
 

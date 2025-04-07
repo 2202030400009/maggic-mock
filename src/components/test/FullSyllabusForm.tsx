@@ -21,11 +21,11 @@ const FullSyllabusSchema = z.object({
   numQuestions: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val)),
+    .transform((val) => parseInt(val, 10)),
   duration: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val)),
+    .transform((val) => parseInt(val, 10)),
 });
 
 // Properly typed form values derived from schema
@@ -41,8 +41,8 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
   const form = useForm<FullSyllabusFormValues>({
     resolver: zodResolver(FullSyllabusSchema),
     defaultValues: {
-      numQuestions: "65",
-      duration: "180",
+      numQuestions: 65,
+      duration: 180,
     },
   });
 
@@ -50,8 +50,9 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "numQuestions") {
-        const numQuestions = Number(value.numQuestions || 65);
-        form.setValue("duration", String(numQuestions * 3));
+        const numQuestions = value.numQuestions || 65;
+        // Update duration to 3 minutes per question
+        form.setValue("duration", numQuestions * 3);
       }
     });
     return () => subscription.unsubscribe();
@@ -71,7 +72,14 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
             <FormItem>
               <FormLabel>Number of Questions</FormLabel>
               <FormControl>
-                <Input {...field} type="number" min="1" max="100" />
+                <Input 
+                  {...field} 
+                  type="number" 
+                  min="1" 
+                  max="100"
+                  value={field.value.toString()}
+                  onChange={(e) => field.onChange(e.target.value)}
+                />
               </FormControl>
               <FormDescription>
                 Recommended: 65 questions for full syllabus test
@@ -88,7 +96,14 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
             <FormItem>
               <FormLabel>Duration (minutes)</FormLabel>
               <FormControl>
-                <Input {...field} type="number" min="1" max={Number(form.getValues("numQuestions") || 65) * 10} />
+                <Input 
+                  {...field} 
+                  type="number" 
+                  min="1" 
+                  max={Number(form.getValues("numQuestions") || 65) * 10}
+                  value={field.value.toString()}
+                  onChange={(e) => field.onChange(e.target.value)}
+                />
               </FormControl>
               <FormDescription>
                 Recommended: 3 minutes per question (auto-calculated)
