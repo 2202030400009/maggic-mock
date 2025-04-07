@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { usePaper } from "@/context/PaperContext";
-import { SwitchHorizontal } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 
 const PaperSwitcher = () => {
   const { paperType, togglePaperType } = usePaper();
@@ -13,7 +13,7 @@ const PaperSwitcher = () => {
       className="flex items-center gap-2"
       onClick={togglePaperType}
     >
-      <SwitchHorizontal className="h-4 w-4" />
+      <ArrowLeftRight className="h-4 w-4" />
       <span className="hidden sm:inline">Switch to</span>
       {paperType === "GATE CS" ? "GATE DA" : "GATE CS"}
     </Button>
