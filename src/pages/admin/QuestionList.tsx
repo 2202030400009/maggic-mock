@@ -30,8 +30,11 @@ const QuestionList = () => {
   useEffect(() => {
     const fetchPyqYears = async () => {
       try {
-        // This is a simplified approach - in a real app, you might want to store this in a separate collection
-        const years = ["2024", "2023", "2022", "2021", "2020", "2019"];
+        // Expanded year range from 2015 to 2025
+        const years = [
+          "2025", "2024", "2023", "2022", "2021", "2020", 
+          "2019", "2018", "2017", "2016", "2015"
+        ];
         setPyqYears(years);
       } catch (error) {
         console.error("Error fetching PYQ years:", error);
@@ -51,26 +54,35 @@ const QuestionList = () => {
         if (currentTab === "all" || currentTab === "general") {
           // Fetch general questions
           const generalCollectionName = `questions_${paperType?.replace(" ", "_")}`;
-          const generalQSnapshot = await getDocs(collection(db, generalCollectionName));
-          generalQSnapshot.forEach((doc) => {
-            fetchedQuestions.push({ id: doc.id, ...doc.data() } as Question);
-          });
+          try {
+            const generalQSnapshot = await getDocs(collection(db, generalCollectionName));
+            generalQSnapshot.forEach((doc) => {
+              fetchedQuestions.push({ id: doc.id, ...doc.data() } as Question);
+            });
+          } catch (error) {
+            console.log(`Collection ${generalCollectionName} might not exist yet`, error);
+          }
         }
 
         if ((currentTab === "all" || currentTab === "pyq") && selectedYear) {
           // Fetch PYQ questions for the selected year
           const pyqCollectionName = `pyqQuestions_${paperType?.replace(" ", "_")}_${selectedYear}`;
-          const pyqQSnapshot = await getDocs(collection(db, pyqCollectionName));
-          pyqQSnapshot.forEach((doc) => {
-            fetchedQuestions.push({ 
-              id: doc.id, 
-              ...doc.data(),
-              paperType: selectedYear // Add year info for display
-            } as Question);
-          });
+          try {
+            const pyqQSnapshot = await getDocs(collection(db, pyqCollectionName));
+            pyqQSnapshot.forEach((doc) => {
+              fetchedQuestions.push({ 
+                id: doc.id, 
+                ...doc.data(),
+                paperType: selectedYear // Add year info for display
+              } as Question);
+            });
+          } catch (error) {
+            console.log(`Collection ${pyqCollectionName} might not exist yet`, error);
+          }
         }
 
         setQuestions(fetchedQuestions);
+        console.log("Fetched questions:", fetchedQuestions.length);
       } catch (error) {
         console.error("Error fetching questions:", error);
       } finally {
@@ -86,8 +98,8 @@ const QuestionList = () => {
   // Filter questions based on search term
   const filteredQuestions = questions.filter(
     (question) =>
-      question.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      question.subject.toLowerCase().includes(searchTerm.toLowerCase())
+      question.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      question.subject?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Get question type badge class
@@ -139,25 +151,27 @@ const QuestionList = () => {
       {(currentTab === "all" || currentTab === "pyq") && (
         <div className="mb-6 flex flex-wrap gap-2">
           <span className="text-sm font-medium py-2">PYQ Years:</span>
-          {pyqYears.map((year) => (
-            <Button
-              key={year}
-              variant={selectedYear === year ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedYear(year)}
-            >
-              {year}
-            </Button>
-          ))}
-          {selectedYear && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedYear(null)}
-            >
-              Clear
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {pyqYears.map((year) => (
+              <Button
+                key={year}
+                variant={selectedYear === year ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedYear(year)}
+              >
+                {year}
+              </Button>
+            ))}
+            {selectedYear && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedYear(null)}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
       )}
       

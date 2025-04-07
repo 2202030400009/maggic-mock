@@ -46,6 +46,14 @@ const QuestionDisplay = ({
     }
   };
 
+  const handleNATInputChange = (value: string) => {
+    if (value.trim() === '') {
+      updateAnswer(null);
+    } else {
+      updateAnswer(value);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
@@ -97,11 +105,12 @@ const QuestionDisplay = ({
               <div
                 key={option.id}
                 className={cn(
-                  "border rounded-md p-3 transition-colors",
+                  "border rounded-md p-3 transition-colors cursor-pointer",
                   selectedOption === option.id
                     ? "border-indigo-500 bg-indigo-50"
                     : "border-gray-200 hover:border-gray-300"
                 )}
+                onClick={() => handleOptionSelect(option.id)}
               >
                 <div className="flex items-center">
                   <RadioGroupItem value={option.id} id={`option-${option.id}`} className="mr-3" />
@@ -126,23 +135,18 @@ const QuestionDisplay = ({
             <div
               key={option.id}
               className={cn(
-                "border rounded-md p-3 transition-colors",
+                "border rounded-md p-3 transition-colors cursor-pointer",
                 selectedOptions.includes(option.id)
                   ? "border-indigo-500 bg-indigo-50"
                   : "border-gray-200 hover:border-gray-300"
               )}
+              onClick={() => handleOptionSelect(option.id)}
             >
               <div className="flex items-center">
                 <Checkbox 
                   id={`msq-option-${option.id}`}
                   checked={selectedOptions.includes(option.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      handleOptionSelect(option.id);
-                    } else {
-                      handleOptionSelect(option.id);
-                    }
-                  }}
+                  onCheckedChange={() => handleOptionSelect(option.id)}
                   className="mr-3"
                 />
                 <Label htmlFor={`msq-option-${option.id}`} className="flex-grow cursor-pointer">
@@ -173,8 +177,16 @@ const QuestionDisplay = ({
                 ? userAnswers[currentQuestion] as string
                 : ""
             }
-            onChange={(e) => updateAnswer(e.target.value)}
+            onChange={(e) => handleNATInputChange(e.target.value)}
           />
+          <div className="text-sm text-gray-500 mt-2">
+            {currentQuestionData.rangeStart !== undefined && 
+             currentQuestionData.rangeEnd !== undefined && (
+              <p className="italic">
+                Valid range: {currentQuestionData.rangeStart} to {currentQuestionData.rangeEnd}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

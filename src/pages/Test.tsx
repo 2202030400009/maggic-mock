@@ -223,7 +223,7 @@ const Test = () => {
     
     // For NAT questions, update status as attempted when an answer is provided
     const currentQuestionData = questions[currentQuestion];
-    if (currentQuestionData.type === "NAT" && answer && answer.toString().trim() !== '') {
+    if (currentQuestionData?.type === "NAT" && answer && answer.toString().trim() !== '') {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
     }
   };
@@ -232,13 +232,13 @@ const Test = () => {
     // Update status based on actions
     const currentQuestionData = questions[currentQuestion];
     
-    if (currentQuestionData.type === "MCQ" && selectedOption) {
+    if (currentQuestionData?.type === "MCQ" && selectedOption) {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
       updateAnswer(selectedOption);
-    } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
+    } else if (currentQuestionData?.type === "MSQ" && selectedOptions.length > 0) {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
       updateAnswer([...selectedOptions]);
-    } else if (currentQuestionData.type === "NAT") {
+    } else if (currentQuestionData?.type === "NAT") {
       const answer = userAnswers[currentQuestion];
       if (answer && answer.toString().trim() !== '') {
         updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
@@ -329,7 +329,7 @@ const Test = () => {
           userEmail: currentUser.email,
           testType: year ? "PYQ" : "Personalized",
           year: year || null,
-          paperType,
+          paperType: paperType || "General",
           totalMarks: results.totalMarks,
           scoredMarks: results.actualMarks,
           scaledMarks: results.scaledMarks,
@@ -339,17 +339,17 @@ const Test = () => {
             questionId: q.id,
             questionText: q.text,
             questionType: q.type,
-            options: q.options,
-            correctOption: q.correctOption,
-            correctOptions: q.correctOptions,
-            userAnswer: userAnswers[index],
-            timeSpent: timeSpent[index],
+            options: q.options || [],
+            correctOption: q.correctOption || "",
+            correctOptions: q.correctOptions || [],
+            userAnswer: userAnswers[index] || null,
+            timeSpent: timeSpent[index] || 0,
             status: questionStatus[index] || "notVisited",
             marks: q.marks,
             subject: q.subject,
           })),
-          subjectPerformance: results.subjectPerformance,
-          weakSubjects: results.weakSubjects,
+          subjectPerformance: results.subjectPerformance || [],
+          weakSubjects: results.weakSubjects || [],
           timestamp: serverTimestamp(),
         };
         

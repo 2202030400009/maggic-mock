@@ -5,8 +5,9 @@ import { usePaper } from "@/context/PaperContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, FileText, Settings, LogOut, Shield } from "lucide-react";
+import { BookOpen, FileText, Settings, LogOut, Shield, RefreshCw } from "lucide-react";
 import FeedbackButton from "@/components/FeedbackButton";
+import PaperSwitcher from "@/components/PaperSwitcher";
 
 const YearPaperCard = ({ year, paperType }: { year: number; paperType: string }) => {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ const Dashboard = () => {
             <h1 className="text-xl font-bold">MaggicMock</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium text-gray-700">{paperType}</span>
+            <PaperSwitcher />
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
                 <Shield className="h-4 w-4 mr-1" /> Admin

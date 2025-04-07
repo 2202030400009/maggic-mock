@@ -26,14 +26,8 @@ import {
 // Schema for Subject Wise form with proper transformations
 const SubjectWiseSchema = z.object({
   subject: z.string().min(1, "Required"),
-  numQuestions: z
-    .string()
-    .min(1, "Required")
-    .transform((val) => Number(val)),
-  duration: z
-    .string()
-    .min(1, "Required")
-    .transform((val) => Number(val)),
+  numQuestions: z.number().min(1, "Must have at least 1 question"),
+  duration: z.number().min(1, "Duration must be at least 1 minute"),
 });
 
 // Properly typed form values derived from schema
@@ -51,8 +45,8 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
     resolver: zodResolver(SubjectWiseSchema),
     defaultValues: {
       subject: subjectList[0] || "",
-      numQuestions: "20",
-      duration: "60",
+      numQuestions: 20,
+      duration: 60,
     },
   });
 
@@ -60,8 +54,8 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "numQuestions") {
-        const numQuestions = Number(value.numQuestions || 20);
-        form.setValue("duration", String(numQuestions * 3));
+        const numQuestions = value.numQuestions || 20;
+        form.setValue("duration", numQuestions * 3);
       }
     });
     return () => subscription.unsubscribe();
@@ -109,7 +103,13 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
             <FormItem>
               <FormLabel>Number of Questions</FormLabel>
               <FormControl>
-                <Input {...field} type="number" min="1" max="50" />
+                <Input 
+                  type="number" 
+                  min="1" 
+                  max="50" 
+                  value={field.value}
+                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -123,7 +123,13 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
             <FormItem>
               <FormLabel>Duration (minutes)</FormLabel>
               <FormControl>
-                <Input {...field} type="number" min="1" max={Number(form.getValues("numQuestions") || 20) * 10} />
+                <Input 
+                  type="number" 
+                  min="1" 
+                  max={(form.getValues("numQuestions") || 20) * 10}
+                  value={field.value} 
+                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                />
               </FormControl>
               <FormDescription>
                 Recommended: 3 minutes per question (auto-calculated)

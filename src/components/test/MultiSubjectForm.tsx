@@ -40,10 +40,10 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
   const form = useForm<MultiSubjectFormValues>({
     resolver: zodResolver(MultiSubjectSchema),
     defaultValues: {
-      numSubjects: "2",
+      numSubjects: 2,
       subjects: [subjectList[0] || "", subjectList[1] || ""],
-      numQuestions: "30",
-      duration: "90",
+      numQuestions: 30,
+      duration: 90,
     },
   });
 
@@ -51,8 +51,10 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "numQuestions") {
-        const numQuestions = Number(value.numQuestions || 30);
-        form.setValue("duration", String(calculateTestDuration(numQuestions)));
+        const numQuestions = Number(value.numQuestions);
+        if (!isNaN(numQuestions)) {
+          form.setValue("duration", calculateTestDuration(numQuestions));
+        }
       }
     });
     return () => subscription.unsubscribe();
@@ -61,7 +63,7 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
   // Update form based on number of subjects
   useEffect(() => {
     const subjects = form.getValues("subjects") || [];
-    const numSubjectsValue = Number(form.getValues("numSubjects"));
+    const numSubjectsValue = form.getValues("numSubjects");
     
     if (numSubjectsValue !== numSubjects) {
       setNumSubjects(numSubjectsValue);
@@ -102,8 +104,9 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
               <FormLabel>Number of Subjects</FormLabel>
               <Select 
                 onValueChange={(value) => {
-                  field.onChange(value);
-                  setNumSubjects(Number(value));
+                  const numValue = parseInt(value, 10);
+                  field.onChange(numValue);
+                  setNumSubjects(numValue);
                 }} 
                 defaultValue={field.value.toString()}
               >
@@ -176,3 +179,4 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
 };
 
 export default MultiSubjectForm;
+export type { MultiSubjectFormValues };

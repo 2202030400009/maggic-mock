@@ -18,14 +18,8 @@ import {
 
 // Define form schema with proper transformations
 const FullSyllabusSchema = z.object({
-  numQuestions: z
-    .string()
-    .min(1, "Required")
-    .transform((val) => parseInt(val, 10)),
-  duration: z
-    .string()
-    .min(1, "Required")
-    .transform((val) => parseInt(val, 10)),
+  numQuestions: z.number().min(1, "Must have at least 1 question"),
+  duration: z.number().min(1, "Duration must be at least 1 minute"),
 });
 
 // Properly typed form values derived from schema
@@ -73,12 +67,11 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
               <FormLabel>Number of Questions</FormLabel>
               <FormControl>
                 <Input 
-                  {...field} 
                   type="number" 
                   min="1" 
                   max="100"
-                  value={field.value.toString()}
-                  onChange={(e) => field.onChange(e.target.value)}
+                  value={field.value}
+                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
                 />
               </FormControl>
               <FormDescription>
@@ -97,12 +90,11 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
               <FormLabel>Duration (minutes)</FormLabel>
               <FormControl>
                 <Input 
-                  {...field} 
                   type="number" 
                   min="1" 
-                  max={Number(form.getValues("numQuestions") || 65) * 10}
-                  value={field.value.toString()}
-                  onChange={(e) => field.onChange(e.target.value)}
+                  max={(form.getValues("numQuestions") || 65) * 10}
+                  value={field.value}
+                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
                 />
               </FormControl>
               <FormDescription>
