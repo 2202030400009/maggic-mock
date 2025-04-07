@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { QuestionType } from "@/lib/types";
 
 interface QuestionControlsProps {
   currentQuestion: number;
@@ -8,7 +9,7 @@ interface QuestionControlsProps {
   handleNextQuestion: () => void;
   handleSkipQuestion: () => void;
   submitting?: boolean;
-  questionType?: string;
+  questionType?: QuestionType;
 }
 
 const QuestionControls = ({
@@ -21,10 +22,23 @@ const QuestionControls = ({
 }: QuestionControlsProps) => {
   const isLastQuestion = currentQuestion === totalQuestions - 1;
   
+  const renderQuestionTypeLabel = () => {
+    switch(questionType) {
+      case "MCQ":
+        return "Multiple Choice Question";
+      case "MSQ":
+        return "Multiple Select Question";
+      case "NAT":
+        return "Numerical Answer Type";
+      default:
+        return questionType;
+    }
+  };
+  
   return (
     <div className="mt-8 flex justify-between items-center">
       <div className="text-sm text-gray-500">
-        Question Type: <span className="font-medium">{questionType}</span>
+        Question Type: <span className="font-medium">{renderQuestionTypeLabel()}</span>
       </div>
       
       <div className="flex gap-3">

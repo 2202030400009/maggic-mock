@@ -18,8 +18,12 @@ import {
 
 // Define form schema with proper transformations
 const FullSyllabusSchema = z.object({
-  numQuestions: z.number().min(1, "Must have at least 1 question"),
-  duration: z.number().min(1, "Duration must be at least 1 minute"),
+  numQuestions: z.string()
+    .min(1, "Must have at least 1 question")
+    .transform(val => Number(val)),
+  duration: z.string()
+    .min(1, "Duration must be at least 1 minute")
+    .transform(val => Number(val)),
 });
 
 // Properly typed form values derived from schema
@@ -32,11 +36,11 @@ interface FullSyllabusFormProps {
 }
 
 const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) => {
-  const form = useForm<FullSyllabusFormValues>({
+  const form = useForm<z.infer<typeof FullSyllabusSchema>>({
     resolver: zodResolver(FullSyllabusSchema),
     defaultValues: {
-      numQuestions: 65,
-      duration: 180,
+      numQuestions: "65",
+      duration: "180",
     },
   });
 
@@ -44,9 +48,9 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "numQuestions") {
-        const numQuestions = value.numQuestions || 65;
+        const numQuestions = parseInt(value.numQuestions || "65", 10);
         // Update duration to 3 minutes per question
-        form.setValue("duration", numQuestions * 3);
+        form.setValue("duration", String(numQuestions * 3));
       }
     });
     return () => subscription.unsubscribe();
@@ -70,8 +74,7 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
                   type="number" 
                   min="1" 
                   max="100"
-                  value={field.value}
-                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                  {...field}
                 />
               </FormControl>
               <FormDescription>
@@ -92,9 +95,8 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
                 <Input 
                   type="number" 
                   min="1" 
-                  max={(form.getValues("numQuestions") || 65) * 10}
-                  value={field.value}
-                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                  max={String(parseInt(form.getValues("numQuestions") || "65", 10) * 10)}
+                  {...field}
                 />
               </FormControl>
               <FormDescription>

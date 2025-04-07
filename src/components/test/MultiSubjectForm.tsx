@@ -23,12 +23,15 @@ import SubjectSelector from "./SubjectSelector";
 import TestFormField from "./TestFormField";
 import { 
   MultiSubjectSchema, 
-  MultiSubjectFormValues,
-  calculateTestDuration
+  calculateTestDuration,
+  calculateMaxDuration
 } from "./schemas/multiSubjectSchema";
 
+// Export the type directly from the schema file
+export type { MultiSubjectFormValues } from "./schemas/multiSubjectSchema";
+
 interface MultiSubjectFormProps {
-  onSubmit: (values: MultiSubjectFormValues) => void;
+  onSubmit: (values: any) => void;
   onBack: () => void;
   loading: boolean;
   subjectList: string[];
@@ -37,13 +40,13 @@ interface MultiSubjectFormProps {
 const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubjectFormProps) => {
   const [numSubjects, setNumSubjects] = useState<number>(2);
   
-  const form = useForm<MultiSubjectFormValues>({
+  const form = useForm({
     resolver: zodResolver(MultiSubjectSchema),
     defaultValues: {
-      numSubjects: 2,
+      numSubjects: "2", // String for select compatibility
       subjects: [subjectList[0] || "", subjectList[1] || ""],
-      numQuestions: 30,
-      duration: 90,
+      numQuestions: "30", // String for input compatibility
+      duration: "90", // String for input compatibility
     },
   });
 
@@ -53,7 +56,7 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
       if (name === "numQuestions") {
         const numQuestions = Number(value.numQuestions);
         if (!isNaN(numQuestions)) {
-          form.setValue("duration", calculateTestDuration(numQuestions));
+          form.setValue("duration", String(calculateTestDuration(numQuestions)));
         }
       }
     });
@@ -63,7 +66,7 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
   // Update form based on number of subjects
   useEffect(() => {
     const subjects = form.getValues("subjects") || [];
-    const numSubjectsValue = form.getValues("numSubjects");
+    const numSubjectsValue = parseInt(form.getValues("numSubjects") || "2", 10);
     
     if (numSubjectsValue !== numSubjects) {
       setNumSubjects(numSubjectsValue);
@@ -104,11 +107,10 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
               <FormLabel>Number of Subjects</FormLabel>
               <Select 
                 onValueChange={(value) => {
-                  const numValue = parseInt(value, 10);
-                  field.onChange(numValue);
-                  setNumSubjects(numValue);
+                  field.onChange(value);
+                  setNumSubjects(parseInt(value, 10));
                 }} 
-                defaultValue={field.value.toString()}
+                defaultValue={field.value}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -152,7 +154,7 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
           description="Recommended: 3 minutes per question (auto-calculated)"
           type="number"
           min="1"
-          max={Number(form.getValues("numQuestions") || 30) * 10}
+          max={String(parseInt(form.getValues("numQuestions") || "30", 10) * 10)}
         />
         
         <div className="flex justify-between pt-4">
@@ -179,4 +181,4 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
 };
 
 export default MultiSubjectForm;
-export type { MultiSubjectFormValues };
+
