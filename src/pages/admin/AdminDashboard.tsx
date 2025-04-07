@@ -7,8 +7,26 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, MessageSquare, FileText, TrendingUp, Plus, List } from "lucide-react";
+import { Users, MessageSquare, FileText, TrendingUp, Plus, List, BookOpen } from "lucide-react";
 import { AdminStats } from "@/lib/types";
+import PaperSwitcher from "@/components/PaperSwitcher";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const AdminDashboard = () => {
   const { signOut } = useAuth();
@@ -21,6 +39,8 @@ const AdminDashboard = () => {
   });
   const [recentFeedbacks, setRecentFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showYearDialog, setShowYearDialog] = useState(false);
+  const [selectedYear, setSelectedYear] = useState("2024");
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -71,12 +91,18 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
+  const handleSelectYear = (year: string) => {
+    navigate(`/admin/add-question?type=pyq&year=${year}`);
+    setShowYearDialog(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold">Admin Dashboard</h1>
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
+            <PaperSwitcher />
             <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
               User Dashboard
             </Button>
@@ -140,13 +166,87 @@ const AdminDashboard = () => {
         </div>
         
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <Button onClick={() => navigate("/admin/add-question")} className="bg-indigo-600 hover:bg-indigo-700">
-            <Plus className="mr-2 h-4 w-4" /> Add Question
-          </Button>
-          <Button onClick={() => navigate("/admin/feedbacks")} variant="outline">
-            <List className="mr-2 h-4 w-4" /> View All Feedbacks
-          </Button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Regular Questions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500 mb-4">
+                Add questions to the general question bank that will be used for personalized tests.
+              </p>
+              <Button onClick={() => navigate("/admin/add-question")} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                <Plus className="mr-2 h-4 w-4" /> Add Regular Question
+              </Button>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Add PYQ Questions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500 mb-4">
+                Add questions for previous year papers. Each year needs exactly 65 questions.
+              </p>
+              <Dialog open={showYearDialog} onOpenChange={setShowYearDialog}>
+                <DialogTrigger asChild>
+                  <Button className="w-full bg-amber-600 hover:bg-amber-700">
+                    <BookOpen className="mr-2 h-4 w-4" /> Add PYQ Question
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Select Year</DialogTitle>
+                    <DialogDescription>
+                      Choose which year's paper you want to add questions to
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="py-4">
+                    <Select
+                      value={selectedYear}
+                      onValueChange={setSelectedYear}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2020">2020</SelectItem>
+                        <SelectItem value="2021">2021</SelectItem>
+                        <SelectItem value="2022">2022</SelectItem>
+                        <SelectItem value="2023">2023</SelectItem>
+                        <SelectItem value="2024">2024</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowYearDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => handleSelectYear(selectedYear)}>
+                      Continue
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Manage Questions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-gray-500 mb-4">
+                View, edit, and delete questions from both regular and PYQ collections.
+              </p>
+              <Button onClick={() => navigate("/admin/questions")} className="w-full">
+                <List className="mr-2 h-4 w-4" /> View All Questions
+              </Button>
+            </CardContent>
+          </Card>
         </div>
         
         {/* Recent Feedbacks */}

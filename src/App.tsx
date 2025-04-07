@@ -15,8 +15,10 @@ import Instructions from "./pages/Instructions";
 import Test from "./pages/Test";
 import Result from "./pages/Result";
 import CreateTest from "./pages/CreateTest";
+import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AddQuestion from "./pages/admin/AddQuestion";
+import QuestionList from "./pages/admin/QuestionList";
 import FeedbacksList from "./pages/admin/FeedbacksList";
 import NotFound from "./pages/NotFound";
 
@@ -43,6 +45,12 @@ const App = () => (
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } />
               
@@ -80,6 +88,12 @@ const App = () => (
               <Route path="/admin/add-question" element={
                 <AdminRoute>
                   <AddQuestion />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/questions" element={
+                <AdminRoute>
+                  <QuestionList />
                 </AdminRoute>
               } />
               

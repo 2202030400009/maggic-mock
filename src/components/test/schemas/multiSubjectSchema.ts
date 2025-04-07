@@ -20,3 +20,15 @@ export const MultiSubjectSchema = z.object({
 
 // Properly typed form values derived from schema
 export type MultiSubjectFormValues = z.infer<typeof MultiSubjectSchema>;
+
+// Helper function for calculating test duration based on number of questions
+export const calculateTestDuration = (numQuestions: number): number => {
+  // 3 minutes per question
+  return numQuestions * 3;
+};
+
+// Helper function for calculating maximum allowed duration
+export const calculateMaxDuration = (numQuestions: number): number => {
+  // 10 minutes per question as maximum
+  return numQuestions * 10;
+};

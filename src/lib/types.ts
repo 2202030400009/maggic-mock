@@ -19,6 +19,7 @@ export interface Question {
   marks: number;
   negativeMark: number;
   subject: string;
+  paperType?: string;
 }
 
 export interface Feedback {
@@ -26,25 +27,44 @@ export interface Feedback {
   name: string;
   email: string;
   message: string;
+  userId?: string;
   timestamp: any;
 }
 
 export interface TestResponse {
   id: string;
   userId: string;
+  userEmail: string;
   testType: string;
   year?: string;
   paperType: string;
   totalMarks: number;
   scoredMarks: number;
+  scaledMarks: number;
   lossMarks: number;
   totalTime: number;
   questions: {
     questionId: string;
+    questionText: string;
+    questionType: string;
+    options?: Option[];
+    correctOption?: string;
+    correctOptions?: string[];
+    userAnswer?: string | string[];
     timeSpent: number;
     status: string;
-    userAnswer?: string | string[];
+    marks: number;
+    subject: string;
   }[];
+  subjectPerformance: {
+    subject: string;
+    total: number;
+    scored: number;
+    attempted: number;
+    totalQuestions: number;
+    percentage: number;
+  }[];
+  weakSubjects: string[];
   timestamp: any;
 }
 

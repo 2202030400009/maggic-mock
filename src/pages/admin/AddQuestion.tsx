@@ -1,14 +1,15 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
 import { usePaper } from "@/context/PaperContext";
 import { QuestionType } from "@/lib/types";
+import { gateCSSubjects, gateDASubjects } from "@/constants/subjects";
 
 import {
   Form,
@@ -41,36 +42,12 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import PaperSwitcher from "@/components/PaperSwitcher";
 
-// GATE CS Subjects
-const gateCSSubjects = [
-  "Aptitude",
-  "Engineering Maths",
-  "Discrete Maths",
-  "Digital Logic",
-  "Computer Organization and Architecture",
-  "Programming and Data Structures",
-  "Algorithms",
-  "Theory of Computation",
-  "Compiler Design",
-  "Operating System",
-  "Database",
-  "Computer Networking",
-];
-
-// GATE DA Subjects
-const gateDASubjects = [
-  "Aptitude",
-  "Linear Algebra",
-  "Calculus",
-  "Probability & Statistics",
-  "Programming and Data Structures",
-  "Algorithms",
-  "Database & Warehousing",
-  "Artificial Intelligence",
-  "Machine Learning",
-  "Deep Learning",
-];
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
 
 const formSchema = z.object({
   questionType: z.string(),
@@ -89,10 +66,41 @@ const AddQuestion = () => {
   const { paperType } = usePaper();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryParams = useQuery();
+  const isPYQ = queryParams.get('type') === 'pyq';
+  const pyqYear = queryParams.get('year');
+  
   const [previewOpen, setPreviewOpen] = useState(false);
-
+  const [questionCount, setQuestionCount] = useState(0);
+  
   // Get subject list based on paper type
   const subjectList = paperType === "GATE CS" ? gateCSSubjects : gateDASubjects;
+  
+  // Get collection name
+  const getCollectionName = () => {
+    if (isPYQ && pyqYear && paperType) {
+      return `pyqQuestions_${paperType.replace(" ", "_")}_${pyqYear}`;
+    }
+    return "questions";
+  };
+  
+  // Count existing questions for PYQ
+  useEffect(() => {
+    const fetchQuestionCount = async () => {
+      if (isPYQ && pyqYear && paperType) {
+        try {
+          const collectionName = getCollectionName();
+          const q = query(collection(db, collectionName));
+          const snapshot = await getDocs(q);
+          setQuestionCount(snapshot.size);
+        } catch (error) {
+          console.error("Error counting questions:", error);
+        }
+      }
+    };
+    
+    fetchQuestionCount();
+  }, [isPYQ, pyqYear, paperType]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -126,6 +134,17 @@ const AddQuestion = () => {
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     try {
       const negativeMark = calculateNegativeMarks();
+      const collectionName = getCollectionName();
+      
+      // Check if we're adding a PYQ and have reached 65 questions
+      if (isPYQ && questionCount >= 65) {
+        toast({
+          title: "Limit Reached",
+          description: `This PYQ already has 65 questions, which is the maximum allowed.`,
+          variant: "destructive",
+        });
+        return;
+      }
       
       const questionData = {
         text: data.questionText,
@@ -163,7 +182,12 @@ const AddQuestion = () => {
       }
 
       // Save to Firestore
-      await addDoc(collection(db, "questions"), questionData);
+      await addDoc(collection(db, collectionName), questionData);
+      
+      // Update question count for PYQ
+      if (isPYQ) {
+        setQuestionCount(prev => prev + 1);
+      }
 
       toast({
         title: "Success!",
@@ -199,10 +223,25 @@ const AddQuestion = () => {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
       <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">Add Question</h1>
-          <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Admin Dashboard
-          </Button>
+          <div className="flex items-center space-x-4">
+            <h1 className="text-xl font-bold">Add Question</h1>
+            {isPYQ && pyqYear && (
+              <Badge variant="outline" className="text-lg">
+                {paperType} PYQ {pyqYear}
+              </Badge>
+            )}
+            {isPYQ && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                {questionCount}/65 questions
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <PaperSwitcher />
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back to Admin Dashboard
+            </Button>
+          </div>
         </div>
       </header>
 

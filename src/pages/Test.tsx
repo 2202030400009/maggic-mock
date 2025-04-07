@@ -36,6 +36,7 @@ const Test = () => {
   const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [markedForReview, setMarkedForReview] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<(string | string[] | null)[]>([]);
@@ -84,10 +85,9 @@ const Test = () => {
           );
         } else if (year) {
           // Fetch PYQ test data
-          const q = query(
-            collection(db, "questions"),
-            where("paperType", "==", paperType)
-          );
+          const collectionName = `pyqQuestions_${paperType?.replace(" ", "_")}_${year}`;
+          
+          const q = query(collection(db, collectionName));
           
           const querySnapshot = await getDocs(q);
           const fetchedQuestions: Question[] = [];
@@ -96,7 +96,27 @@ const Test = () => {
             fetchedQuestions.push({ id: doc.id, ...doc.data() } as Question);
           });
           
-          // For now, just take up to 65 questions (or all if there are fewer)
+          if (fetchedQuestions.length === 0) {
+            toast({
+              title: "No questions found",
+              description: `No questions found for ${paperType} ${year}. Please try another paper.`,
+              variant: "destructive",
+            });
+            navigate("/dashboard");
+            return;
+          }
+          
+          if (fetchedQuestions.length < 65) {
+            toast({
+              title: "Insufficient questions",
+              description: `Only ${fetchedQuestions.length}/65 questions are available for ${paperType} ${year}. Please try another paper or contact admin.`,
+              variant: "destructive",
+            });
+            navigate("/dashboard");
+            return;
+          }
+          
+          // Take exactly 65 questions for PYQ
           const selectedQuestions = fetchedQuestions.slice(0, 65);
           setQuestions(selectedQuestions);
           
@@ -110,7 +130,7 @@ const Test = () => {
               .reduce((acc, _, index) => ({ ...acc, [index]: "notVisited" }), {})
           );
           
-          // Set 3-hour time limit for PYQ tests
+          // Set 3-hour time limit for PYQ tests (180 minutes)
           setRemainingTime(10800); // 3 hours in seconds
         } else {
           // No test parameters or year provided
@@ -217,9 +237,14 @@ const Test = () => {
 
   const handleNextQuestion = () => {
     // Update status based on actions
-    if (selectedOption) {
+    const currentQuestionData = questions[currentQuestion];
+    
+    if (currentQuestionData.type === "MCQ" && selectedOption) {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
       updateAnswer(selectedOption);
+    } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
+      updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+      updateAnswer([...selectedOptions]);
     } else {
       updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     }
@@ -229,21 +254,56 @@ const Test = () => {
       handleSubmitTest();
     } else {
       setCurrentQuestion(prev => prev + 1);
-      setSelectedOption(userAnswers[currentQuestion + 1] as string | null);
+      
+      // Reset selections based on question type for the next question
+      const nextQuestion = questions[currentQuestion + 1];
+      if (nextQuestion.type === "MCQ") {
+        const nextAnswer = userAnswers[currentQuestion + 1];
+        setSelectedOption(typeof nextAnswer === "string" ? nextAnswer : null);
+        setSelectedOptions([]);
+      } else if (nextQuestion.type === "MSQ") {
+        setSelectedOption(null);
+        const nextAnswer = userAnswers[currentQuestion + 1];
+        setSelectedOptions(Array.isArray(nextAnswer) ? nextAnswer : []);
+      } else {
+        setSelectedOption(null);
+        setSelectedOptions([]);
+      }
+      
       setMarkedForReview(false);
     }
   };
 
   const handleJumpToQuestion = (index: number) => {
-    if (selectedOption) {
+    const currentQuestionData = questions[currentQuestion];
+    
+    if (currentQuestionData.type === "MCQ" && selectedOption) {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
       updateAnswer(selectedOption);
+    } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
+      updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+      updateAnswer([...selectedOptions]);
     } else if (questionStatus[currentQuestion] !== "notVisited") {
       updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     }
 
     setCurrentQuestion(index);
-    setSelectedOption(userAnswers[index] as string | null);
+    
+    // Reset selections based on question type
+    const nextQuestion = questions[index];
+    if (nextQuestion.type === "MCQ") {
+      const nextAnswer = userAnswers[index];
+      setSelectedOption(typeof nextAnswer === "string" ? nextAnswer : null);
+      setSelectedOptions([]);
+    } else if (nextQuestion.type === "MSQ") {
+      setSelectedOption(null);
+      const nextAnswer = userAnswers[index];
+      setSelectedOptions(Array.isArray(nextAnswer) ? nextAnswer : []);
+    } else {
+      setSelectedOption(null);
+      setSelectedOptions([]);
+    }
+    
     setMarkedForReview(false);
   };
 
@@ -251,30 +311,105 @@ const Test = () => {
     let rawMarks = 0;
     let lossMarks = 0;
     
+    // Track marks by subject
+    const subjectPerformance: Record<string, {
+      total: number,
+      scored: number,
+      attempted: number,
+      totalQuestions: number
+    }> = {};
+    
     questions.forEach((question, index) => {
       const userAnswer = userAnswers[index];
       
+      // Initialize subject tracking
+      if (!subjectPerformance[question.subject]) {
+        subjectPerformance[question.subject] = {
+          total: 0,
+          scored: 0,
+          attempted: 0,
+          totalQuestions: 0
+        };
+      }
+      
+      // Count total marks and questions by subject
+      subjectPerformance[question.subject].total += question.marks;
+      subjectPerformance[question.subject].totalQuestions += 1;
+      
       if (userAnswer) {
+        subjectPerformance[question.subject].attempted += 1;
+        
         // For MCQ
         if (question.type === "MCQ" && typeof userAnswer === "string") {
           if (userAnswer === question.correctOption) {
             rawMarks += question.marks;
+            subjectPerformance[question.subject].scored += question.marks;
           } else {
             lossMarks += Math.abs(question.negativeMark || 0);
           }
         }
-        // For MSQ - partial marking logic could be added here
-        // For NAT - range checking logic could be added here
+        // For MSQ
+        else if (question.type === "MSQ" && Array.isArray(userAnswer) && question.correctOptions) {
+          const correctCount = userAnswer.filter(opt => 
+            question.correctOptions?.includes(opt)
+          ).length;
+          
+          const incorrectCount = userAnswer.filter(opt => 
+            !question.correctOptions?.includes(opt)
+          ).length;
+          
+          // All correct options and no incorrect ones
+          if (correctCount === question.correctOptions.length && incorrectCount === 0) {
+            rawMarks += question.marks;
+            subjectPerformance[question.subject].scored += question.marks;
+          }
+          // Partial marking could be added here if needed
+        }
+        // For NAT
+        else if (question.type === "NAT" && typeof userAnswer === "string" && 
+                question.rangeStart !== undefined && question.rangeEnd !== undefined) {
+          const numAnswer = parseFloat(userAnswer);
+          if (!isNaN(numAnswer) && 
+              numAnswer >= question.rangeStart && 
+              numAnswer <= question.rangeEnd) {
+            rawMarks += question.marks;
+            subjectPerformance[question.subject].scored += question.marks;
+          }
+        }
       }
     });
     
-    const actualMarks = rawMarks - lossMarks;
+    // Format subject performance for UI
+    const formattedSubjectPerformance = Object.entries(subjectPerformance).map(
+      ([subject, data]) => ({
+        subject,
+        total: data.total,
+        scored: data.scored,
+        attempted: data.attempted,
+        totalQuestions: data.totalQuestions,
+        percentage: data.total > 0 ? Math.round((data.scored / data.total) * 100) : 0
+      })
+    );
+    
+    // Find weak subjects (less than 50% score)
+    const weakSubjects = formattedSubjectPerformance
+      .filter(subject => subject.percentage < 50)
+      .map(subject => subject.subject);
+    
+    const actualMarks = Math.max(0, rawMarks - lossMarks);
+    const totalMarks = questions.reduce((total, q) => total + q.marks, 0);
+    
+    // Scale to 100 marks if total is more than 100
+    const scaledMarks = totalMarks > 100 ? Math.round((actualMarks / totalMarks) * 100) : actualMarks;
     
     return {
       rawMarks,
       lossMarks,
       actualMarks,
-      totalMarks: questions.reduce((total, q) => total + q.marks, 0)
+      scaledMarks,
+      totalMarks,
+      subjectPerformance: formattedSubjectPerformance,
+      weakSubjects
     };
   };
 
@@ -285,33 +420,47 @@ const Test = () => {
       
       // Store test results in Firestore
       if (currentUser) {
-        await addDoc(collection(db, "testResponses"), {
+        const testResponse = {
           userId: currentUser.uid,
+          userEmail: currentUser.email,
           testType: year ? "PYQ" : "Personalized",
           year: year || null,
           paperType,
+          totalMarks: results.totalMarks,
+          scoredMarks: results.actualMarks,
+          scaledMarks: results.scaledMarks,
+          lossMarks: results.lossMarks,
+          totalTime: timeSpent.reduce((a, b) => a + b, 0),
           questions: questions.map((q, index) => ({
             questionId: q.id,
+            questionText: q.text,
+            questionType: q.type,
+            options: q.options,
+            correctOption: q.correctOption,
+            correctOptions: q.correctOptions,
             userAnswer: userAnswers[index],
             timeSpent: timeSpent[index],
-            status: questionStatus[index] || "notVisited"
+            status: questionStatus[index] || "notVisited",
+            marks: q.marks,
+            subject: q.subject,
           })),
-          rawMarks: results.rawMarks,
-          lossMarks: results.lossMarks,
-          actualMarks: results.actualMarks,
-          totalMarks: results.totalMarks,
+          subjectPerformance: results.subjectPerformance,
+          weakSubjects: results.weakSubjects,
           timestamp: serverTimestamp(),
-        });
+        };
+        
+        const docRef = await addDoc(collection(db, "testResponses"), testResponse);
+        
+        // Store results in session storage for the result page
+        sessionStorage.setItem('testResults', JSON.stringify({
+          ...results,
+          testResponseId: docRef.id,
+          questions,
+          userAnswers,
+          questionStatus,
+          timeSpent
+        }));
       }
-      
-      // Store results in session storage for the result page
-      sessionStorage.setItem('testResults', JSON.stringify({
-        ...results,
-        questions,
-        userAnswers,
-        questionStatus,
-        timeSpent
-      }));
       
       // Exit fullscreen
       if (document.fullscreenElement) {
@@ -325,6 +474,22 @@ const Test = () => {
         title: "Error",
         description: "Failed to submit test results. Please try again.",
         variant: "destructive",
+      });
+    }
+  };
+
+  const handleOptionSelect = (optionId: string) => {
+    const currentQuestionData = questions[currentQuestion];
+    
+    if (currentQuestionData.type === "MCQ") {
+      setSelectedOption(optionId);
+    } else if (currentQuestionData.type === "MSQ") {
+      setSelectedOptions(prev => {
+        if (prev.includes(optionId)) {
+          return prev.filter(id => id !== optionId);
+        } else {
+          return [...prev, optionId];
+        }
       });
     }
   };
@@ -428,7 +593,7 @@ const Test = () => {
                         ? "border-indigo-500 bg-indigo-50"
                         : "border-gray-200 hover:border-gray-300"
                     )}
-                    onClick={() => setSelectedOption(option.id)}
+                    onClick={() => handleOptionSelect(option.id)}
                   >
                     <div className="flex items-center">
                       <div className={cn(
@@ -446,6 +611,51 @@ const Test = () => {
               </div>
             )}
 
+            {currentQuestionData.type === "MSQ" && currentQuestionData.options && (
+              <div className="space-y-3">
+                {currentQuestionData.options.map((option) => (
+                  <div
+                    key={option.id}
+                    className={cn(
+                      "border rounded-md p-3 cursor-pointer transition-colors",
+                      selectedOptions.includes(option.id)
+                        ? "border-indigo-500 bg-indigo-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    )}
+                    onClick={() => handleOptionSelect(option.id)}
+                  >
+                    <div className="flex items-center">
+                      <div className={cn(
+                        "w-6 h-6 rounded border flex items-center justify-center mr-3",
+                        selectedOptions.includes(option.id) 
+                          ? "border-indigo-500 bg-indigo-50 text-indigo-500" 
+                          : "border-gray-300"
+                      )}>
+                        {selectedOptions.includes(option.id) && "✓"}
+                      </div>
+                      <span>{option.text}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {currentQuestionData.type === "NAT" && (
+              <div className="my-6">
+                <Input
+                  type="number"
+                  placeholder="Enter your answer"
+                  className="max-w-xs"
+                  value={
+                    typeof userAnswers[currentQuestion] === "string"
+                      ? userAnswers[currentQuestion] as string
+                      : ""
+                  }
+                  onChange={(e) => updateAnswer(e.target.value)}
+                />
+              </div>
+            )}
+
             <div className="mt-8 flex justify-between">
               <Button
                 variant="outline"
@@ -453,7 +663,22 @@ const Test = () => {
                   updateQuestionStatus("skipped");
                   if (currentQuestion < questions.length - 1) {
                     setCurrentQuestion(prev => prev + 1);
-                    setSelectedOption(userAnswers[currentQuestion + 1] as string | null);
+                    
+                    // Reset selections based on question type
+                    const nextQuestion = questions[currentQuestion + 1];
+                    if (nextQuestion.type === "MCQ") {
+                      const nextAnswer = userAnswers[currentQuestion + 1];
+                      setSelectedOption(typeof nextAnswer === "string" ? nextAnswer : null);
+                      setSelectedOptions([]);
+                    } else if (nextQuestion.type === "MSQ") {
+                      setSelectedOption(null);
+                      const nextAnswer = userAnswers[currentQuestion + 1];
+                      setSelectedOptions(Array.isArray(nextAnswer) ? nextAnswer : []);
+                    } else {
+                      setSelectedOption(null);
+                      setSelectedOptions([]);
+                    }
+                    
                     setMarkedForReview(false);
                   }
                 }}

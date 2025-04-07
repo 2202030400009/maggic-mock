@@ -1,29 +1,68 @@
 
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, TrendingUp, TrendingDown, Award } from "lucide-react";
 
+interface SubjectPerformance {
+  subject: string;
+  total: number;
+  scored: number;
+  attempted: number;
+  totalQuestions: number;
+  percentage: number;
+}
+
+interface TestResult {
+  rawMarks: number;
+  lossMarks: number;
+  actualMarks: number;
+  scaledMarks: number;
+  totalMarks: number;
+  subjectPerformance: SubjectPerformance[];
+  weakSubjects: string[];
+  testResponseId?: string;
+}
+
 const Result = () => {
   const navigate = useNavigate();
+  const [results, setResults] = useState<TestResult | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock results data
-  const results = {
-    rawMarks: 110,
-    lossMarks: 15,
-    actualMarks: 95,
-    totalMarks: 180,
-    weakSubjects: ["Computer Networking", "Database", "Theory of Computation"],
-    subjectPerformance: [
-      { subject: "Aptitude", total: 15, scored: 12, attempted: 5, totalQuestions: 5, percentage: 80 },
-      { subject: "Engineering Maths", total: 15, scored: 9, attempted: 5, totalQuestions: 5, percentage: 60 },
-      { subject: "Database", total: 15, scored: 6, attempted: 5, totalQuestions: 5, percentage: 40 },
-      { subject: "Computer Networking", total: 15, scored: 5, attempted: 5, totalQuestions: 5, percentage: 33 },
-      { subject: "Operating System", total: 15, scored: 10, attempted: 5, totalQuestions: 5, percentage: 67 },
-      { subject: "Theory of Computation", total: 15, scored: 7, attempted: 5, totalQuestions: 5, percentage: 47 },
-    ]
-  };
+  useEffect(() => {
+    // Load test results from session storage
+    const storedResults = sessionStorage.getItem('testResults');
+    
+    if (storedResults) {
+      try {
+        const parsedResults = JSON.parse(storedResults);
+        setResults(parsedResults);
+      } catch (error) {
+        console.error("Error parsing test results:", error);
+      }
+    }
+    
+    setLoading(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading results...</p>
+      </div>
+    );
+  }
+
+  if (!results) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p className="text-xl mb-4">No test results found</p>
+        <Button onClick={() => navigate("/dashboard")}>Return to Dashboard</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -72,15 +111,15 @@ const Result = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-end">
-                <span className="text-3xl font-bold">{results.actualMarks}</span>
-                <span className="text-gray-500 ml-1">/ {results.totalMarks}</span>
+                <span className="text-3xl font-bold">{results.scaledMarks}</span>
+                <span className="text-gray-500 ml-1">/ 100</span>
                 <span className="ml-2 text-gray-500">
-                  ({Math.round((results.actualMarks / results.totalMarks) * 100)}%)
+                  ({Math.round((results.scaledMarks / 100) * 100)}%)
                 </span>
               </div>
               <Progress
                 className="mt-2"
-                value={(results.actualMarks / results.totalMarks) * 100}
+                value={(results.scaledMarks / 100) * 100}
               />
             </CardContent>
           </Card>
@@ -93,14 +132,18 @@ const Result = () => {
                 <CardTitle className="text-lg">Weak Subjects</CardTitle>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2">
-                  {results.weakSubjects.map((subject, index) => (
-                    <li key={index} className="flex items-center p-2 bg-red-50 rounded-md">
-                      <div className="w-1 h-8 bg-red-500 rounded-full mr-3"></div>
-                      <span>{subject}</span>
-                    </li>
-                  ))}
-                </ul>
+                {results.weakSubjects && results.weakSubjects.length > 0 ? (
+                  <ul className="space-y-2">
+                    {results.weakSubjects.map((subject, index) => (
+                      <li key={index} className="flex items-center p-2 bg-red-50 rounded-md">
+                        <div className="w-1 h-8 bg-red-500 rounded-full mr-3"></div>
+                        <span>{subject}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-center py-4">No weak subjects identified. Great job!</p>
+                )}
               </CardContent>
             </Card>
           </div>

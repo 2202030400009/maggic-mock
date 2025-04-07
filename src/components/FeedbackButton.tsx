@@ -117,11 +117,13 @@ const FeedbackButton = () => {
                     <Input 
                       placeholder="Your email" 
                       type="email" 
+                      disabled
                       {...field} 
+                      className="bg-gray-100"
                     />
                   </FormControl>
                   <FormDescription>
-                    We'll never share your email with anyone else.
+                    This is the email address associated with your account.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
