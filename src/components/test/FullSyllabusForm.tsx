@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,6 +46,17 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
     },
   });
 
+  // Update duration based on question count
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "numQuestions") {
+        const numQuestions = Number(value.numQuestions || 65);
+        form.setValue("duration", String(numQuestions * 3));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -77,10 +88,10 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
             <FormItem>
               <FormLabel>Duration (minutes)</FormLabel>
               <FormControl>
-                <Input {...field} type="number" min="1" max="600" />
+                <Input {...field} type="number" min="1" max={Number(form.getValues("numQuestions") || 65) * 10} />
               </FormControl>
               <FormDescription>
-                Recommended: 3 minutes per question (180 minutes total)
+                Recommended: 3 minutes per question (auto-calculated)
               </FormDescription>
               <FormMessage />
             </FormItem>

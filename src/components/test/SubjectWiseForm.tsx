@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,7 +25,7 @@ import {
 
 // Schema for Subject Wise form with proper transformations
 const SubjectWiseSchema = z.object({
-  subject: z.string(),
+  subject: z.string().min(1, "Required"),
   numQuestions: z
     .string()
     .min(1, "Required")
@@ -55,6 +55,17 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
       duration: "60",
     },
   });
+
+  // Update duration based on question count
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "numQuestions") {
+        const numQuestions = Number(value.numQuestions || 20);
+        form.setValue("duration", String(numQuestions * 3));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   return (
     <Form {...form}>
@@ -112,10 +123,10 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
             <FormItem>
               <FormLabel>Duration (minutes)</FormLabel>
               <FormControl>
-                <Input {...field} type="number" min="1" max="120" />
+                <Input {...field} type="number" min="1" max={Number(form.getValues("numQuestions") || 20) * 10} />
               </FormControl>
               <FormDescription>
-                Recommended: 3 minutes per question
+                Recommended: 3 minutes per question (auto-calculated)
               </FormDescription>
               <FormMessage />
             </FormItem>

@@ -21,7 +21,11 @@ import {
 } from "@/components/ui/select";
 import SubjectSelector from "./SubjectSelector";
 import TestFormField from "./TestFormField";
-import { MultiSubjectSchema, MultiSubjectFormValues } from "./schemas/multiSubjectSchema";
+import { 
+  MultiSubjectSchema, 
+  MultiSubjectFormValues,
+  calculateTestDuration
+} from "./schemas/multiSubjectSchema";
 
 interface MultiSubjectFormProps {
   onSubmit: (values: MultiSubjectFormValues) => void;
@@ -42,6 +46,17 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
       duration: "90",
     },
   });
+
+  // Update duration based on question count
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "numQuestions") {
+        const numQuestions = Number(value.numQuestions || 30);
+        form.setValue("duration", String(calculateTestDuration(numQuestions)));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // Update form based on number of subjects
   useEffect(() => {
@@ -131,10 +146,10 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
           control={form.control}
           name="duration"
           label="Duration (minutes)"
-          description="Recommended: 3 minutes per question"
+          description="Recommended: 3 minutes per question (auto-calculated)"
           type="number"
           min="1"
-          max="300"
+          max={Number(form.getValues("numQuestions") || 30) * 10}
         />
         
         <div className="flex justify-between pt-4">

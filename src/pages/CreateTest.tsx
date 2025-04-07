@@ -8,7 +8,7 @@ import { usePaper } from "@/context/PaperContext";
 import { useToast } from "@/hooks/use-toast";
 import { FullSyllabusFormValues } from "@/components/test/FullSyllabusForm";
 import { SubjectWiseFormValues } from "@/components/test/SubjectWiseForm";
-import { MultiSubjectFormValues } from "@/components/test/MultiSubjectForm";
+import { MultiSubjectFormValues } from "@/components/test/schemas/multiSubjectSchema";
 import { gateCSSubjects, gateDASubjects } from "@/constants/subjects";
 import { 
   generateFullSyllabusTest,
