@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/form";
 
 interface TestFormFieldProps {
-  control: Control<any>;
+  control: Control<any>; // Using any to accommodate both string and number types
   name: string;
   label: string;
   description?: string;
