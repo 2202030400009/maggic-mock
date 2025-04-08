@@ -135,7 +135,7 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
         {Array.from({ length: numSubjects }).map((_, index) => (
           <SubjectSelector 
             key={index} 
-            control={form.control} 
+            control={form.control as any} 
             subjectList={subjectList} 
             index={index} 
           />

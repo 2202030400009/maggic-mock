@@ -228,8 +228,8 @@ const Test = () => {
     }
   };
 
-  const handleNextQuestion = () => {
-    // Update status based on actions
+  // Helper function to save the current question's answer and status
+  const saveCurrentQuestionAnswer = () => {
     const currentQuestionData = questions[currentQuestion];
     
     if (currentQuestionData?.type === "MCQ" && selectedOption) {
@@ -248,6 +248,11 @@ const Test = () => {
     } else {
       updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     }
+  };
+
+  const handleNextQuestion = () => {
+    // Save the current question's answer and status
+    saveCurrentQuestionAnswer();
 
     // Move to next question or submit if last
     if (currentQuestion === questions.length - 1) {
@@ -275,24 +280,8 @@ const Test = () => {
   };
 
   const handleJumpToQuestion = (index: number) => {
-    const currentQuestionData = questions[currentQuestion];
-    
-    if (currentQuestionData.type === "MCQ" && selectedOption) {
-      updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
-      updateAnswer(selectedOption);
-    } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
-      updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
-      updateAnswer([...selectedOptions]);
-    } else if (currentQuestionData.type === "NAT") {
-      const answer = userAnswers[currentQuestion];
-      if (answer && answer.toString().trim() !== '') {
-        updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
-      } else if (questionStatus[currentQuestion] !== "notVisited") {
-        updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
-      }
-    } else if (questionStatus[currentQuestion] !== "notVisited") {
-      updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
-    }
+    // Save the current question before jumping
+    saveCurrentQuestionAnswer();
 
     setCurrentQuestion(index);
     
@@ -320,23 +309,7 @@ const Test = () => {
       setSubmitting(true);
       
       // Save the current question's answer before submitting
-      const currentQuestionData = questions[currentQuestion];
-      if (currentQuestionData) {
-        if (currentQuestionData.type === "MCQ" && selectedOption) {
-          updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
-          updateAnswer(selectedOption);
-        } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
-          updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
-          updateAnswer([...selectedOptions]);
-        } else if (currentQuestionData.type === "NAT") {
-          const answer = userAnswers[currentQuestion];
-          if (answer && answer.toString().trim() !== '') {
-            updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
-          } else {
-            updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
-          }
-        }
-      }
+      saveCurrentQuestionAnswer();
       
       // Calculate results
       const results = calculateResults(questions, userAnswers);
@@ -428,7 +401,7 @@ const Test = () => {
   };
 
   const handleSkipQuestion = () => {
-    updateQuestionStatus("skipped");
+    updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
       

@@ -1,12 +1,14 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react"; 
+import { ArrowLeft, Award } from "lucide-react"; 
 import ResultHeader from "@/components/result/ResultHeader";
 import ResultSummaryCards from "@/components/result/ResultSummaryCards";
 import SubjectPerformance from "@/components/result/SubjectPerformance";
 import WeakSubjects from "@/components/result/WeakSubjects";
 import QuestionAnalysisTable from "@/components/result/QuestionAnalysisTable";
 import { QuestionDetail, TestResult } from "@/types/result";
+import { Question } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -77,7 +79,7 @@ const Result = () => {
     }
     
     setLoading(false);
-  }, []);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -98,17 +100,7 @@ const Result = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold flex items-center">
-            <Award className="h-5 w-5 mr-2 text-indigo-600" />
-            Test Results
-          </h1>
-          <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
-          </Button>
-        </div>
-      </header>
+      <ResultHeader />
 
       <main className="container mx-auto px-4 py-8">
         <ResultSummaryCards 
