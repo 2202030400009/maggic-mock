@@ -16,18 +16,30 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-// Define form schema with proper transformations
+// Define form schema with string inputs
 const FullSyllabusSchema = z.object({
   numQuestions: z.string()
-    .min(1, "Must have at least 1 question")
-    .transform(val => parseInt(val, 10)),
+    .min(1, "Must have at least 1 question"),
   duration: z.string()
-    .min(1, "Duration must be at least 1 minute")
-    .transform(val => parseInt(val, 10)),
+    .min(1, "Duration must be at least 1 minute"),
 });
 
-// Properly typed form values derived from schema
-export type FullSyllabusFormValues = z.infer<typeof FullSyllabusSchema>;
+// Raw form values before transformation
+type FullSyllabusFormRawValues = z.infer<typeof FullSyllabusSchema>;
+
+// Properly typed form values after transformation
+export type FullSyllabusFormValues = {
+  numQuestions: number;
+  duration: number;
+};
+
+// Helper to transform form values after validation
+const transformFormValues = (values: FullSyllabusFormRawValues): FullSyllabusFormValues => {
+  return {
+    numQuestions: parseInt(values.numQuestions, 10),
+    duration: parseInt(values.duration, 10),
+  };
+};
 
 interface FullSyllabusFormProps {
   onSubmit: (values: FullSyllabusFormValues) => void;
@@ -36,13 +48,18 @@ interface FullSyllabusFormProps {
 }
 
 const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) => {
-  const form = useForm<z.infer<typeof FullSyllabusSchema>>({
+  const form = useForm<FullSyllabusFormRawValues>({
     resolver: zodResolver(FullSyllabusSchema),
     defaultValues: {
       numQuestions: "65",
       duration: "180",
     },
   });
+
+  const handleFormSubmit = (values: FullSyllabusFormRawValues) => {
+    const transformedValues = transformFormValues(values);
+    onSubmit(transformedValues);
+  };
 
   // Update duration based on question count
   useEffect(() => {
@@ -60,7 +77,7 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           Full Syllabus Test
         </h2>

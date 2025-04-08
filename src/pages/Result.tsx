@@ -1,21 +1,21 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Award } from "lucide-react";
-import { Question } from "@/lib/types";
+import { ArrowLeft } from "lucide-react"; 
 import ResultHeader from "@/components/result/ResultHeader";
 import ResultSummaryCards from "@/components/result/ResultSummaryCards";
-import WeakSubjects from "@/components/result/WeakSubjects";
 import SubjectPerformance from "@/components/result/SubjectPerformance";
+import WeakSubjects from "@/components/result/WeakSubjects";
 import QuestionAnalysisTable from "@/components/result/QuestionAnalysisTable";
 import { QuestionDetail, TestResult } from "@/types/result";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const Result = () => {
   const navigate = useNavigate();
   const [results, setResults] = useState<TestResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [questionDetails, setQuestionDetails] = useState<QuestionDetail[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Load test results from session storage
@@ -68,6 +68,11 @@ const Result = () => {
         }
       } catch (error) {
         console.error("Error parsing test results:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load test results",
+          variant: "destructive"
+        });
       }
     }
     

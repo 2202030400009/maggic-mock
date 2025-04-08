@@ -23,15 +23,14 @@ import SubjectSelector from "./SubjectSelector";
 import TestFormField from "./TestFormField";
 import { 
   MultiSubjectSchema, 
+  MultiSubjectFormValues,
+  MultiSubjectFormRawValues, 
   calculateTestDuration,
-  calculateMaxDuration
+  transformFormValues
 } from "./schemas/multiSubjectSchema";
 
-// Export the type directly from the schema file
-export type { MultiSubjectFormValues } from "./schemas/multiSubjectSchema";
-
 interface MultiSubjectFormProps {
-  onSubmit: (values: any) => void;
+  onSubmit: (values: MultiSubjectFormValues) => void;
   onBack: () => void;
   loading: boolean;
   subjectList: string[];
@@ -40,7 +39,7 @@ interface MultiSubjectFormProps {
 const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubjectFormProps) => {
   const [numSubjects, setNumSubjects] = useState<number>(2);
   
-  const form = useForm({
+  const form = useForm<MultiSubjectFormRawValues>({
     resolver: zodResolver(MultiSubjectSchema),
     defaultValues: {
       numSubjects: "2", // String for select compatibility
@@ -50,11 +49,16 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
     },
   });
 
+  const handleFormSubmit = (values: MultiSubjectFormRawValues) => {
+    const transformedValues = transformFormValues(values);
+    onSubmit(transformedValues);
+  };
+
   // Update duration based on question count
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === "numQuestions") {
-        const numQuestions = Number(value.numQuestions);
+      if (name === "numQuestions" && value.numQuestions) {
+        const numQuestions = parseInt(value.numQuestions, 10);
         if (!isNaN(numQuestions)) {
           form.setValue("duration", String(calculateTestDuration(numQuestions)));
         }
@@ -94,7 +98,7 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           Multi-Subject Test
         </h2>

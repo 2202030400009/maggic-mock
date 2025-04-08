@@ -319,6 +319,25 @@ const Test = () => {
       if (submitting) return; // Prevent multiple submissions
       setSubmitting(true);
       
+      // Save the current question's answer before submitting
+      const currentQuestionData = questions[currentQuestion];
+      if (currentQuestionData) {
+        if (currentQuestionData.type === "MCQ" && selectedOption) {
+          updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+          updateAnswer(selectedOption);
+        } else if (currentQuestionData.type === "MSQ" && selectedOptions.length > 0) {
+          updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+          updateAnswer([...selectedOptions]);
+        } else if (currentQuestionData.type === "NAT") {
+          const answer = userAnswers[currentQuestion];
+          if (answer && answer.toString().trim() !== '') {
+            updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+          } else {
+            updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
+          }
+        }
+      }
+      
       // Calculate results
       const results = calculateResults(questions, userAnswers);
       

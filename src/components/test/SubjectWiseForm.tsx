@@ -23,21 +23,31 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 
-// Schema for Subject Wise form with proper transformations
+// Schema for Subject Wise form with string inputs
 const SubjectWiseSchema = z.object({
   subject: z.string().min(1, "Required"),
-  numQuestions: z
-    .string()
-    .min(1, "Must have at least 1 question")
-    .transform(val => parseInt(val, 10)),
-  duration: z
-    .string()
-    .min(1, "Duration must be at least 1 minute")
-    .transform(val => parseInt(val, 10)),
+  numQuestions: z.string().min(1, "Must have at least 1 question"),
+  duration: z.string().min(1, "Duration must be at least 1 minute"),
 });
 
-// Properly typed form values derived from schema
-export type SubjectWiseFormValues = z.infer<typeof SubjectWiseSchema>;
+// Raw form values before transformation
+type SubjectWiseFormRawValues = z.infer<typeof SubjectWiseSchema>;
+
+// Properly typed form values after transformation
+export type SubjectWiseFormValues = {
+  subject: string;
+  numQuestions: number;
+  duration: number;
+};
+
+// Helper to transform form values after validation
+const transformFormValues = (values: SubjectWiseFormRawValues): SubjectWiseFormValues => {
+  return {
+    subject: values.subject,
+    numQuestions: parseInt(values.numQuestions, 10),
+    duration: parseInt(values.duration, 10),
+  };
+};
 
 interface SubjectWiseFormProps {
   onSubmit: (values: SubjectWiseFormValues) => void;
@@ -47,7 +57,7 @@ interface SubjectWiseFormProps {
 }
 
 const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWiseFormProps) => {
-  const form = useForm<z.infer<typeof SubjectWiseSchema>>({
+  const form = useForm<SubjectWiseFormRawValues>({
     resolver: zodResolver(SubjectWiseSchema),
     defaultValues: {
       subject: subjectList[0] || "",
@@ -55,6 +65,11 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
       duration: "60",
     },
   });
+
+  const handleFormSubmit = (values: SubjectWiseFormRawValues) => {
+    const transformedValues = transformFormValues(values);
+    onSubmit(transformedValues);
+  };
 
   // Update duration based on question count
   useEffect(() => {
@@ -71,7 +86,7 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           Subject Wise Test
         </h2>
