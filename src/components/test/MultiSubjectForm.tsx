@@ -181,4 +181,3 @@ const MultiSubjectForm = ({ onSubmit, onBack, loading, subjectList }: MultiSubje
 };
 
 export default MultiSubjectForm;
-

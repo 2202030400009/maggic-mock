@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   Form,
@@ -22,12 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 // Schema for Subject Wise form with proper transformations
 const SubjectWiseSchema = z.object({
   subject: z.string().min(1, "Required"),
-  numQuestions: z.number().min(1, "Must have at least 1 question"),
-  duration: z.number().min(1, "Duration must be at least 1 minute"),
+  numQuestions: z
+    .string()
+    .min(1, "Must have at least 1 question")
+    .transform(val => parseInt(val, 10)),
+  duration: z
+    .string()
+    .min(1, "Duration must be at least 1 minute")
+    .transform(val => parseInt(val, 10)),
 });
 
 // Properly typed form values derived from schema
@@ -41,21 +47,23 @@ interface SubjectWiseFormProps {
 }
 
 const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWiseFormProps) => {
-  const form = useForm<SubjectWiseFormValues>({
+  const form = useForm<z.infer<typeof SubjectWiseSchema>>({
     resolver: zodResolver(SubjectWiseSchema),
     defaultValues: {
       subject: subjectList[0] || "",
-      numQuestions: 20,
-      duration: 60,
+      numQuestions: "20",
+      duration: "60",
     },
   });
 
   // Update duration based on question count
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === "numQuestions") {
-        const numQuestions = value.numQuestions || 20;
-        form.setValue("duration", numQuestions * 3);
+      if (name === "numQuestions" && value.numQuestions) {
+        const numQuestions = parseInt(value.numQuestions, 10);
+        if (!isNaN(numQuestions)) {
+          form.setValue("duration", String(numQuestions * 3));
+        }
       }
     });
     return () => subscription.unsubscribe();
@@ -107,8 +115,7 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
                   type="number" 
                   min="1" 
                   max="50" 
-                  value={field.value}
-                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                  {...field}
                 />
               </FormControl>
               <FormMessage />
@@ -126,9 +133,8 @@ const SubjectWiseForm = ({ onSubmit, onBack, loading, subjectList }: SubjectWise
                 <Input 
                   type="number" 
                   min="1" 
-                  max={(form.getValues("numQuestions") || 20) * 10}
-                  value={field.value} 
-                  onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)}
+                  max={String(parseInt(form.getValues("numQuestions") || "20", 10) * 10)}
+                  {...field}
                 />
               </FormControl>
               <FormDescription>

@@ -20,10 +20,10 @@ import {
 const FullSyllabusSchema = z.object({
   numQuestions: z.string()
     .min(1, "Must have at least 1 question")
-    .transform(val => Number(val)),
+    .transform(val => parseInt(val, 10)),
   duration: z.string()
     .min(1, "Duration must be at least 1 minute")
-    .transform(val => Number(val)),
+    .transform(val => parseInt(val, 10)),
 });
 
 // Properly typed form values derived from schema
@@ -47,10 +47,12 @@ const FullSyllabusForm = ({ onSubmit, onBack, loading }: FullSyllabusFormProps) 
   // Update duration based on question count
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === "numQuestions") {
-        const numQuestions = parseInt(value.numQuestions || "65", 10);
-        // Update duration to 3 minutes per question
-        form.setValue("duration", String(numQuestions * 3));
+      if (name === "numQuestions" && value.numQuestions) {
+        const numQuestions = parseInt(value.numQuestions, 10);
+        if (!isNaN(numQuestions)) {
+          // Update duration to 3 minutes per question as string
+          form.setValue("duration", String(numQuestions * 3));
+        }
       }
     });
     return () => subscription.unsubscribe();

@@ -6,16 +6,16 @@ export const MultiSubjectSchema = z.object({
   numSubjects: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val)),
+    .transform((val) => parseInt(val, 10)),
   subjects: z.array(z.string()).optional(),
   numQuestions: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val)),
+    .transform((val) => parseInt(val, 10)),
   duration: z
     .string()
     .min(1, "Required")
-    .transform((val) => Number(val)),
+    .transform((val) => parseInt(val, 10)),
 });
 
 // Properly typed form values derived from schema
