@@ -179,14 +179,7 @@ const QuestionDisplay = ({
             }
             onChange={(e) => handleNATInputChange(e.target.value)}
           />
-          <div className="text-sm text-gray-500 mt-2">
-            {currentQuestionData.rangeStart !== undefined && 
-             currentQuestionData.rangeEnd !== undefined && (
-              <p className="italic">
-                Valid range: {currentQuestionData.rangeStart} to {currentQuestionData.rangeEnd}
-              </p>
-            )}
-          </div>
+          {/* Removed the range display to hide answers */}
         </div>
       )}
     </div>

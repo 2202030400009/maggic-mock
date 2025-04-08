@@ -65,22 +65,25 @@ export const useTestResults = () => {
             lossMarks += Math.abs(question.negativeMark || 0);
           }
         }
-        // For MSQ
+        // For MSQ - Fixed logic for checking MSQ answers
         else if (question.type === "MSQ" && Array.isArray(userAnswer) && question.correctOptions) {
-          const correctCount = userAnswer.filter(opt => 
+          // Check if user selected all the correct options and nothing else
+          const allCorrectOptionsSelected = question.correctOptions.every(opt => 
+            userAnswer.includes(opt)
+          );
+          
+          const noIncorrectOptionsSelected = userAnswer.every(opt => 
             question.correctOptions?.includes(opt)
-          ).length;
+          );
           
-          const incorrectCount = userAnswer.filter(opt => 
-            !question.correctOptions?.includes(opt)
-          ).length;
-          
-          // All correct options and no incorrect ones
-          if (correctCount === question.correctOptions.length && incorrectCount === 0) {
+          // User must select ALL correct options AND ONLY correct options
+          if (allCorrectOptionsSelected && noIncorrectOptionsSelected) {
             rawMarks += question.marks;
             subjectPerformance[question.subject].scored += question.marks;
+          } else if (userAnswer.length > 0) {
+            // Only apply negative marking if the user selected something
+            lossMarks += Math.abs(question.negativeMark || 0);
           }
-          // Partial marking could be added here if needed
         }
         // For NAT
         else if (question.type === "NAT" && typeof userAnswer === "string" && 
@@ -91,6 +94,9 @@ export const useTestResults = () => {
               numAnswer <= question.rangeEnd) {
             rawMarks += question.marks;
             subjectPerformance[question.subject].scored += question.marks;
+          } else if (userAnswer.trim() !== '') {
+            // Only apply negative marking if the user entered something
+            lossMarks += Math.abs(question.negativeMark || 0);
           }
         }
       }
@@ -113,11 +119,12 @@ export const useTestResults = () => {
       .filter(subject => subject.percentage < 50)
       .map(subject => subject.subject);
     
-    const actualMarks = Math.max(0, rawMarks - lossMarks);
+    // Allow negative final score
+    const actualMarks = rawMarks - lossMarks;
     const totalMarks = questions.reduce((total, q) => total + q.marks, 0);
     
-    // Scale to 100 marks if total is more than 100
-    const scaledMarks = totalMarks > 100 ? Math.round((actualMarks / totalMarks) * 100) : actualMarks;
+    // Scale based on test type - use actual total marks for non-standard tests
+    const scaledMarks = totalMarks === 65 ? Math.round((actualMarks / totalMarks) * 100) : actualMarks;
     
     return {
       rawMarks,
