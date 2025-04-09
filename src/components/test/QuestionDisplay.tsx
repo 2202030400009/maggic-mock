@@ -206,7 +206,7 @@ const QuestionDisplay = ({
       {currentQuestionData.type === "NAT" && (
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Enter a numerical value {formatRange(currentQuestionData.rangeStart, currentQuestionData.rangeEnd)}:
+            Enter a numerical value :
           </p>
           <div className="max-w-xs">
             <Input
