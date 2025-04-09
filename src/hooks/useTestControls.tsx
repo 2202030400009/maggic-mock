@@ -128,7 +128,18 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
       // Save the last question answer before submitting
       saveCurrentQuestionAnswer();
       
-      const results = calculateResults(questions, userAnswers);
+      // Ensure the question statuses are properly updated in state before calculating results
+      // This is crucial for the last question
+      const updatedUserAnswers = [...userAnswers];
+      const currentQuestionData = questions[currentQuestion];
+      
+      if (currentQuestionData?.type === "MCQ" && selectedOption) {
+        updatedUserAnswers[currentQuestion] = selectedOption;
+      } else if (currentQuestionData?.type === "MSQ" && selectedOptions.length > 0) {
+        updatedUserAnswers[currentQuestion] = [...selectedOptions];
+      }
+      
+      const results = calculateResults(questions, updatedUserAnswers);
       
       if (currentUser) {
         const testResponse = {
@@ -142,19 +153,34 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
           scaledMarks: results.scaledMarks,
           lossMarks: results.lossMarks,
           totalTime: timeSpent.reduce((a, b) => a + b, 0),
-          questions: questions.map((q, index) => ({
-            questionId: q.id,
-            questionText: q.text,
-            questionType: q.type,
-            options: q.options || [],
-            correctOption: q.correctOption || "",
-            correctOptions: q.correctOptions || [],
-            userAnswer: userAnswers[index] || null,
-            timeSpent: timeSpent[index] || 0,
-            status: questionStatus[index] || "notVisited",
-            marks: q.marks,
-            subject: q.subject,
-          })),
+          questions: questions.map((q, index) => {
+            // Determine the correct status for each question, especially the last one
+            let status = questionStatus[index] || "notVisited";
+            const userAnswer = updatedUserAnswers[index];
+            
+            // If this is the last question and it has an answer but the status doesn't reflect it
+            if (index === currentQuestion && userAnswer) {
+              if (Array.isArray(userAnswer) && userAnswer.length > 0) {
+                status = markedForReview ? "attemptedReview" : "attempted";
+              } else if (typeof userAnswer === "string" && userAnswer.trim() !== '') {
+                status = markedForReview ? "attemptedReview" : "attempted";
+              }
+            }
+            
+            return {
+              questionId: q.id,
+              questionText: q.text,
+              questionType: q.type,
+              options: q.options || [],
+              correctOption: q.correctOption || "",
+              correctOptions: q.correctOptions || [],
+              userAnswer: userAnswer || null,
+              timeSpent: timeSpent[index] || 0,
+              status: status,
+              marks: q.marks,
+              subject: q.subject,
+            };
+          }),
           subjectPerformance: results.subjectPerformance || [],
           weakSubjects: results.weakSubjects || [],
           timestamp: serverTimestamp(),
@@ -168,7 +194,7 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
             ...results,
             testResponseId: docRef.id,
             questions,
-            userAnswers,
+            userAnswers: updatedUserAnswers,
             questionStatus,
             timeSpent,
             paperType

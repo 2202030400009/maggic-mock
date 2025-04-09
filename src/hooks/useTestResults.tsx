@@ -53,7 +53,12 @@ export const useTestResults = () => {
       subjectPerformance[question.subject].total += question.marks;
       subjectPerformance[question.subject].totalQuestions += 1;
       
-      if (userAnswer) {
+      // Consider an answer attempted if it's not null and not empty
+      const isAttempted = userAnswer !== null && 
+        (typeof userAnswer !== 'string' || userAnswer.trim() !== '') &&
+        (!Array.isArray(userAnswer) || userAnswer.length > 0);
+        
+      if (isAttempted) {
         subjectPerformance[question.subject].attempted += 1;
         
         // For MCQ
@@ -65,7 +70,7 @@ export const useTestResults = () => {
             lossMarks += Math.abs(question.negativeMark || 0);
           }
         }
-        // For MSQ - Fixed logic for checking MSQ answers
+        // For MSQ
         else if (question.type === "MSQ" && Array.isArray(userAnswer) && question.correctOptions) {
           // Check if user selected all the correct options and nothing else
           const allCorrectOptionsSelected = question.correctOptions.every(opt => 
@@ -80,7 +85,7 @@ export const useTestResults = () => {
           if (allCorrectOptionsSelected && noIncorrectOptionsSelected) {
             rawMarks += question.marks;
             subjectPerformance[question.subject].scored += question.marks;
-          } else if (userAnswer.length > 0) {
+          } else {
             // Only apply negative marking if the user selected something
             lossMarks += Math.abs(question.negativeMark || 0);
           }
@@ -94,7 +99,7 @@ export const useTestResults = () => {
               numAnswer <= question.rangeEnd) {
             rawMarks += question.marks;
             subjectPerformance[question.subject].scored += question.marks;
-          } else if (userAnswer.trim() !== '') {
+          } else {
             // Only apply negative marking if the user entered something
             lossMarks += Math.abs(question.negativeMark || 0);
           }

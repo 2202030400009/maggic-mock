@@ -33,13 +33,16 @@ const Result = () => {
           const details = parsedResults.questions.map((q: Question, index: number) => {
             const userAnswer = parsedResults.userAnswers?.[index];
             let isCorrect = false;
-            let isSkipped = userAnswer === null;
+            let isSkipped = userAnswer === null || 
+                           (typeof userAnswer === "string" && userAnswer.trim() === "") || 
+                           (Array.isArray(userAnswer) && userAnswer.length === 0);
             
             // Check if the answer is correct based on question type
-            if (q.type === "MCQ" && typeof userAnswer === "string") {
+            if (q.type === "MCQ" && typeof userAnswer === "string" && userAnswer.trim() !== "") {
               isCorrect = userAnswer === q.correctOption;
+              isSkipped = false;
             } 
-            else if (q.type === "MSQ" && Array.isArray(userAnswer) && q.correctOptions) {
+            else if (q.type === "MSQ" && Array.isArray(userAnswer) && q.correctOptions && userAnswer.length > 0) {
               const allCorrectSelected = q.correctOptions.every(
                 opt => userAnswer.includes(opt)
               );
@@ -49,13 +52,22 @@ const Result = () => {
               );
               
               isCorrect = allCorrectSelected && noIncorrectSelected;
+              isSkipped = false;
             }
-            else if (q.type === "NAT" && typeof userAnswer === "string" && 
+            else if (q.type === "NAT" && typeof userAnswer === "string" && userAnswer.trim() !== "" && 
                     q.rangeStart !== undefined && q.rangeEnd !== undefined) {
               const numAnswer = parseFloat(userAnswer);
               isCorrect = !isNaN(numAnswer) && 
                           numAnswer >= q.rangeStart && 
                           numAnswer <= q.rangeEnd;
+              isSkipped = false;
+            }
+            
+            // Update skipped status based on questionStatus if available
+            if (parsedResults.questionStatus && 
+                (parsedResults.questionStatus[index] === "attempted" || 
+                 parsedResults.questionStatus[index] === "attemptedReview")) {
+              isSkipped = false;
             }
             
             return {
@@ -104,19 +116,19 @@ const Result = () => {
 
       <main className="container mx-auto px-4 py-8">
         <ResultSummaryCards 
-          rawMarks={results.rawMarks}
-          lossMarks={results.lossMarks}
-          scaledMarks={results.scaledMarks}
-          totalMarks={results.totalMarks}
+          rawMarks={results?.rawMarks || 0}
+          lossMarks={results?.lossMarks || 0}
+          scaledMarks={results?.scaledMarks || 0}
+          totalMarks={results?.totalMarks || 0}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="md:col-span-1">
-            <WeakSubjects weakSubjects={results.weakSubjects} />
+            <WeakSubjects weakSubjects={results?.weakSubjects || []} />
           </div>
           
           <div className="md:col-span-2">
-            <SubjectPerformance subjectPerformance={results.subjectPerformance} />
+            <SubjectPerformance subjectPerformance={results?.subjectPerformance || []} />
           </div>
         </div>
 
