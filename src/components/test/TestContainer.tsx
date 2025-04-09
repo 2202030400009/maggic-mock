@@ -19,9 +19,11 @@ const TestContainer = () => {
     questions,
     loading,
     userAnswers,
+    setUserAnswers,
     timeSpent,
     setTimeSpent,
     questionStatus,
+    setQuestionStatus,
     remainingTime,
     setRemainingTime
   } = useTestLoader(year, paperType);
@@ -40,10 +42,16 @@ const TestContainer = () => {
     handleSkipQuestion,
     handleJumpToQuestion,
     handleSubmitTest,
+    saveCurrentQuestionAnswer,
+    updateQuestionStatus
   } = useTestControls({ 
     questions, 
     paperType,
-    year 
+    year,
+    userAnswers,
+    setUserAnswers,
+    questionStatus,
+    setQuestionStatus
   });
 
   // Start timers
@@ -100,6 +108,7 @@ const TestContainer = () => {
             handleOptionSelect={handleOptionSelect}
             updateAnswer={updateAnswer}
             userAnswers={userAnswers}
+            updateQuestionStatus={updateQuestionStatus}
           />
           
           <QuestionControls 

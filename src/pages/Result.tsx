@@ -27,48 +27,55 @@ const Result = () => {
       try {
         const parsedResults = JSON.parse(storedResults);
         setResults(parsedResults);
+        console.log("Loaded results:", parsedResults); // Debug log
         
         // Process questions for the table
         if (parsedResults.questions && parsedResults.userAnswers) {
           const details = parsedResults.questions.map((q: Question, index: number) => {
             const userAnswer = parsedResults.userAnswers?.[index];
-            let isCorrect = false;
-            let isSkipped = userAnswer === null || 
+            const questionStatus = parsedResults.questionStatus?.[index] || "notVisited";
+            
+            // Determine if the question was skipped based on status and answer
+            let isSkipped = questionStatus === "skipped" || questionStatus === "skippedReview" || 
+                           questionStatus === "notVisited" ||
+                           userAnswer === null || 
                            (typeof userAnswer === "string" && userAnswer.trim() === "") || 
                            (Array.isArray(userAnswer) && userAnswer.length === 0);
             
-            // Check if the answer is correct based on question type
-            if (q.type === "MCQ" && typeof userAnswer === "string" && userAnswer.trim() !== "") {
-              isCorrect = userAnswer === q.correctOption;
-              isSkipped = false;
-            } 
-            else if (q.type === "MSQ" && Array.isArray(userAnswer) && q.correctOptions && userAnswer.length > 0) {
-              const allCorrectSelected = q.correctOptions.every(
-                opt => userAnswer.includes(opt)
-              );
-              
-              const noIncorrectSelected = userAnswer.every(
-                opt => q.correctOptions?.includes(opt)
-              );
-              
-              isCorrect = allCorrectSelected && noIncorrectSelected;
-              isSkipped = false;
-            }
-            else if (q.type === "NAT" && typeof userAnswer === "string" && userAnswer.trim() !== "" && 
-                    q.rangeStart !== undefined && q.rangeEnd !== undefined) {
-              const numAnswer = parseFloat(userAnswer);
-              isCorrect = !isNaN(numAnswer) && 
-                          numAnswer >= q.rangeStart && 
-                          numAnswer <= q.rangeEnd;
+            // Check if the question was marked as attempted in the status
+            if (questionStatus === "attempted" || questionStatus === "attemptedReview") {
               isSkipped = false;
             }
             
-            // Update skipped status based on questionStatus if available
-            if (parsedResults.questionStatus && 
-                (parsedResults.questionStatus[index] === "attempted" || 
-                 parsedResults.questionStatus[index] === "attemptedReview")) {
-              isSkipped = false;
+            let isCorrect = false;
+            
+            // Only check for correctness if the question wasn't skipped
+            if (!isSkipped) {
+              // Check if the answer is correct based on question type
+              if (q.type === "MCQ" && typeof userAnswer === "string") {
+                isCorrect = userAnswer === q.correctOption;
+              } 
+              else if (q.type === "MSQ" && Array.isArray(userAnswer) && q.correctOptions) {
+                const allCorrectSelected = q.correctOptions.every(
+                  opt => userAnswer.includes(opt)
+                );
+                
+                const noIncorrectSelected = userAnswer.every(
+                  opt => q.correctOptions?.includes(opt)
+                );
+                
+                isCorrect = allCorrectSelected && noIncorrectSelected;
+              }
+              else if (q.type === "NAT" && typeof userAnswer === "string" && 
+                      q.rangeStart !== undefined && q.rangeEnd !== undefined) {
+                const numAnswer = parseFloat(userAnswer);
+                isCorrect = !isNaN(numAnswer) && 
+                            numAnswer >= q.rangeStart && 
+                            numAnswer <= q.rangeEnd;
+              }
             }
+            
+            console.log(`Question ${index+1}: status=${questionStatus}, isSkipped=${isSkipped}, isCorrect=${isCorrect}`); // Debug log
             
             return {
               ...q,

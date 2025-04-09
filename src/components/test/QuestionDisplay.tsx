@@ -1,24 +1,30 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { AlertTriangle, HelpCircle, Flag, CheckCircle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { Flag } from "lucide-react";
-import { Question, QuestionType } from "@/lib/types";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Option, Question } from "@/lib/types";
+
+// Helper function to format MAT range
+const formatRange = (start?: number, end?: number) => {
+  if (start === undefined || end === undefined) return '';
+  return `(${start} to ${end})`;
+};
 
 interface QuestionDisplayProps {
   currentQuestionData: Question;
   currentQuestion: number;
   markedForReview: boolean;
-  setMarkedForReview: (marked: boolean) => void;
+  setMarkedForReview: (value: boolean) => void;
   selectedOption: string | null;
   selectedOptions: string[];
   handleOptionSelect: (optionId: string) => void;
   updateAnswer: (answer: string | string[] | null) => void;
   userAnswers: (string | string[] | null)[];
+  updateQuestionStatus?: (status: string) => void;
 }
 
 const QuestionDisplay = ({
@@ -31,157 +37,202 @@ const QuestionDisplay = ({
   handleOptionSelect,
   updateAnswer,
   userAnswers,
+  updateQuestionStatus
 }: QuestionDisplayProps) => {
-  // Get question type badge color
-  const getQuestionTypeBadge = (type: QuestionType) => {
-    switch (type) {
-      case "MCQ":
-        return "bg-blue-100 text-blue-800";
-      case "MSQ":
-        return "bg-purple-100 text-purple-800";
-      case "NAT":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+  const [natAnswer, setNatAnswer] = useState<string>('');
+
+  // Initialize NAT answer from userAnswers on question change
+  useEffect(() => {
+    const answer = userAnswers[currentQuestion];
+    if (currentQuestionData.type === "NAT" && answer !== null && typeof answer === 'string') {
+      setNatAnswer(answer);
+    } else {
+      setNatAnswer('');
+    }
+  }, [currentQuestion, currentQuestionData.type, userAnswers]);
+
+  const handleNatInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNatAnswer(value);
+    updateAnswer(value);
+    
+    // Update status immediately for NAT when input changes
+    if (updateQuestionStatus && value.trim() !== '') {
+      updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
     }
   };
 
-  const handleNATInputChange = (value: string) => {
-    if (value.trim() === '') {
-      updateAnswer(null);
-    } else {
-      updateAnswer(value);
+  const handleReviewToggle = (checked: boolean) => {
+    setMarkedForReview(checked);
+    
+    // Update question status when review toggle changes
+    if (updateQuestionStatus) {
+      // Determine if the question has an answer
+      let hasAnswer = false;
+      
+      if (currentQuestionData.type === "MCQ") {
+        hasAnswer = selectedOption !== null;
+      } else if (currentQuestionData.type === "MSQ") {
+        hasAnswer = selectedOptions.length > 0;
+      } else if (currentQuestionData.type === "NAT") {
+        hasAnswer = natAnswer.trim() !== '';
+      }
+      
+      // Update with appropriate status
+      if (hasAnswer) {
+        updateQuestionStatus(checked ? "attemptedReview" : "attempted");
+      } else {
+        updateQuestionStatus(checked ? "skippedReview" : "skipped");
+      }
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      {/* Question number and mark */}
       <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-500">
-            Question {currentQuestion + 1} • {currentQuestionData.marks} mark{currentQuestionData.marks > 1 ? 's' : ''}
-          </span>
-          <span className={cn("text-xs px-2 py-1 rounded-full font-medium", getQuestionTypeBadge(currentQuestionData.type))}>
-            {currentQuestionData.type}
-          </span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn(
-            "text-xs",
-            markedForReview && "bg-amber-50 border-amber-300 text-amber-700"
-          )}
-          onClick={() => setMarkedForReview(!markedForReview)}
-        >
-          <Flag className={cn("h-3 w-3 mr-1", markedForReview ? "text-amber-500" : "text-gray-400")} />
-          {markedForReview ? "Marked for Review" : "Mark for Review"}
-        </Button>
+        <h3 className="text-lg font-medium">Question {currentQuestion + 1}</h3>
+        <span className="bg-indigo-100 text-indigo-800 py-1 px-3 rounded-full text-sm font-medium">
+          {currentQuestionData.marks} mark{currentQuestionData.marks > 1 ? 's' : ''}
+        </span>
       </div>
 
-      <h2 className="text-lg font-medium mb-6">{currentQuestionData.text}</h2>
-      
+      {/* Display warning for negative marking */}
+      {currentQuestionData.negativeMark > 0 && (
+        <div className="flex items-center gap-2 text-amber-600 mb-4 text-sm">
+          <AlertTriangle className="h-4 w-4" />
+          <p>
+            Incorrect answer will deduct {currentQuestionData.negativeMark} mark
+            {currentQuestionData.negativeMark > 1 ? 's' : ''}
+          </p>
+        </div>
+      )}
+
+      {/* Question text */}
+      <div className="mb-6">
+        <p className="text-gray-800" dangerouslySetInnerHTML={{ __html: currentQuestionData.text }} />
+      </div>
+
+      {/* Image if available */}
       {currentQuestionData.imageUrl && (
         <div className="mb-6">
           <img 
-            src={currentQuestionData.imageUrl} 
-            alt="Question" 
-            className="max-h-[300px] object-contain mx-auto"
-            onError={(e) => {
-              e.currentTarget.src = "https://placehold.co/400x200/f5f5f5/cccccc?text=Image+Not+Available";
-            }}
+            src={currentQuestionData.imageUrl}
+            alt="Question illustration"
+            className="max-w-full h-auto rounded-md"
           />
         </div>
       )}
 
+      <Separator className="my-4" />
+
+      {/* Render options for MCQ */}
       {currentQuestionData.type === "MCQ" && currentQuestionData.options && (
         <div className="space-y-3">
-          <RadioGroup 
-            value={selectedOption || ""} 
-            onValueChange={(value) => handleOptionSelect(value)}
-            className="space-y-3"
-          >
-            {currentQuestionData.options.map((option) => (
-              <div
-                key={option.id}
-                className={cn(
-                  "border rounded-md p-3 transition-colors cursor-pointer",
-                  selectedOption === option.id
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-gray-200 hover:border-gray-300"
-                )}
-                onClick={() => handleOptionSelect(option.id)}
-              >
-                <div className="flex items-center">
-                  <RadioGroupItem value={option.id} id={`option-${option.id}`} className="mr-3" />
-                  <Label htmlFor={`option-${option.id}`} className="flex-grow cursor-pointer">
-                    <div className="flex items-center">
-                      <div className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center mr-3">
-                        {option.id.toUpperCase()}
-                      </div>
-                      <span>{option.text}</span>
-                    </div>
-                  </Label>
-                </div>
-              </div>
-            ))}
-          </RadioGroup>
-        </div>
-      )}
-
-      {currentQuestionData.type === "MSQ" && currentQuestionData.options && (
-        <div className="space-y-3">
-          {currentQuestionData.options.map((option) => (
+          <p className="text-sm text-gray-500 mb-2">Select one option:</p>
+          {currentQuestionData.options.map((option: Option) => (
             <div
               key={option.id}
-              className={cn(
-                "border rounded-md p-3 transition-colors cursor-pointer",
-                selectedOptions.includes(option.id)
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-gray-200 hover:border-gray-300"
-              )}
+              className={`flex items-start p-3 rounded-md border cursor-pointer transition-colors ${
+                selectedOption === option.id
+                  ? "bg-indigo-50 border-indigo-300"
+                  : "hover:bg-gray-50"
+              }`}
               onClick={() => handleOptionSelect(option.id)}
             >
-              <div className="flex items-center">
-                <Checkbox 
-                  id={`msq-option-${option.id}`}
-                  checked={selectedOptions.includes(option.id)}
-                  onCheckedChange={() => handleOptionSelect(option.id)}
-                  className="mr-3"
-                />
-                <Label htmlFor={`msq-option-${option.id}`} className="flex-grow cursor-pointer">
-                  <div className="flex items-center">
-                    <div className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center mr-3">
-                      {option.id.toUpperCase()}
-                    </div>
-                    <span>{option.text}</span>
-                  </div>
-                </Label>
+              <div className="shrink-0 mr-3">
+                <div
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center ${
+                    selectedOption === option.id
+                      ? "border-indigo-500 bg-indigo-500"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {selectedOption === option.id && (
+                    <CheckCircle className="h-4 w-4 text-white" />
+                  )}
+                </div>
               </div>
+              <span
+                className={`text-gray-700 ${
+                  selectedOption === option.id ? "font-medium" : ""
+                }`}
+                dangerouslySetInnerHTML={{ __html: option.text }}
+              />
             </div>
           ))}
         </div>
       )}
 
-      {currentQuestionData.type === "NAT" && (
-        <div className="my-6">
-          <Label htmlFor="nat-answer" className="block mb-2">Enter your numerical answer:</Label>
-          <Input
-            id="nat-answer"
-            type="number"
-            step="any"
-            placeholder="Enter your answer"
-            className="max-w-xs"
-            value={
-              typeof userAnswers[currentQuestion] === "string"
-                ? userAnswers[currentQuestion] as string
-                : ""
-            }
-            onChange={(e) => handleNATInputChange(e.target.value)}
-          />
-          {/* Removed the range display to hide answers */}
+      {/* Render options for MSQ */}
+      {currentQuestionData.type === "MSQ" && currentQuestionData.options && (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500 mb-2">Select all correct options:</p>
+          {currentQuestionData.options.map((option: Option) => (
+            <div
+              key={option.id}
+              className={`flex items-start p-3 rounded-md border cursor-pointer transition-colors ${
+                selectedOptions.includes(option.id)
+                  ? "bg-indigo-50 border-indigo-300"
+                  : "hover:bg-gray-50"
+              }`}
+              onClick={() => handleOptionSelect(option.id)}
+            >
+              <div className="shrink-0 mr-3">
+                <div
+                  className={`w-5 h-5 rounded border flex items-center justify-center ${
+                    selectedOptions.includes(option.id)
+                      ? "border-indigo-500 bg-indigo-500"
+                      : "border-gray-300"
+                  }`}
+                >
+                  {selectedOptions.includes(option.id) && (
+                    <CheckCircle className="h-3 w-3 text-white" />
+                  )}
+                </div>
+              </div>
+              <span
+                className={`text-gray-700 ${
+                  selectedOptions.includes(option.id) ? "font-medium" : ""
+                }`}
+                dangerouslySetInnerHTML={{ __html: option.text }}
+              />
+            </div>
+          ))}
         </div>
       )}
+
+      {/* Render input for NAT */}
+      {currentQuestionData.type === "NAT" && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Enter a numerical value {formatRange(currentQuestionData.rangeStart, currentQuestionData.rangeEnd)}:
+          </p>
+          <div className="max-w-xs">
+            <Input
+              type="number"
+              step="0.01"
+              value={natAnswer}
+              onChange={handleNatInputChange}
+              className="border-gray-300 focus:border-indigo-500"
+              placeholder="Enter your answer"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Mark for review toggle */}
+      <div className="mt-8 flex items-center space-x-2">
+        <Switch
+          id="review-mode"
+          checked={markedForReview}
+          onCheckedChange={handleReviewToggle}
+        />
+        <Label htmlFor="review-mode" className="flex items-center cursor-pointer">
+          <Flag className="h-4 w-4 mr-2 text-orange-500" />
+          Mark for review
+        </Label>
+      </div>
     </div>
   );
 };

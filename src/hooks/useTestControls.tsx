@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -12,24 +12,32 @@ interface UseTestControlsProps {
   questions: Question[];
   paperType: string | null;
   year?: string;
+  userAnswers: (string | string[] | null)[];
+  setUserAnswers: React.Dispatch<React.SetStateAction<(string | string[] | null)[]>>;
+  questionStatus: Record<number, string>;
+  setQuestionStatus: React.Dispatch<React.SetStateAction<Record<number, string>>>;
 }
 
-export const useTestControls = ({ questions, paperType, year }: UseTestControlsProps) => {
+export const useTestControls = ({ 
+  questions, 
+  paperType, 
+  year,
+  userAnswers,
+  setUserAnswers,
+  questionStatus,
+  setQuestionStatus
+}: UseTestControlsProps) => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { calculateResults } = useTestResults();
   
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [markedForReview, setMarkedForReview] = useState(false);
-  const [userAnswers, setUserAnswers] = useState<(string | string[] | null)[]>([]);
-  const [questionStatus, setQuestionStatus] = useState<Record<number, string>>({});
   const [timeSpent, setTimeSpent] = useState<number[]>([]);
-  const [remainingTime, setRemainingTime] = useState<number>(10800); // Default 3 hours
 
   const updateQuestionStatus = (status: string) => {
     setQuestionStatus(prev => ({
@@ -70,6 +78,9 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
     } else {
       updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     }
+
+    // Make sure state updates are visible in UI
+    console.log("Question status updated:", currentQuestion, questionStatus[currentQuestion]);
   };
 
   const handleNextQuestion = () => {
@@ -78,29 +89,11 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
     if (currentQuestion === questions.length - 1) {
       handleSubmitTest();
     } else {
-      setCurrentQuestion(prev => prev + 1);
-      
-      const nextQuestion = questions[currentQuestion + 1];
-      if (nextQuestion.type === "MCQ") {
-        const nextAnswer = userAnswers[currentQuestion + 1];
-        setSelectedOption(typeof nextAnswer === "string" ? nextAnswer : null);
-        setSelectedOptions([]);
-      } else if (nextQuestion.type === "MSQ") {
-        setSelectedOption(null);
-        const nextAnswer = userAnswers[currentQuestion + 1];
-        setSelectedOptions(Array.isArray(nextAnswer) ? nextAnswer : []);
-      } else {
-        setSelectedOption(null);
-        setSelectedOptions([]);
-      }
-      
-      setMarkedForReview(false);
+      moveToQuestion(currentQuestion + 1);
     }
   };
 
-  const handleJumpToQuestion = (index: number) => {
-    saveCurrentQuestionAnswer();
-    
+  const moveToQuestion = (index: number) => {
     setCurrentQuestion(index);
     
     const nextQuestion = questions[index];
@@ -117,7 +110,15 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
       setSelectedOptions([]);
     }
     
-    setMarkedForReview(false);
+    setMarkedForReview(
+      questionStatus[index] === "attemptedReview" || 
+      questionStatus[index] === "skippedReview"
+    );
+  };
+
+  const handleJumpToQuestion = (index: number) => {
+    saveCurrentQuestionAnswer();
+    moveToQuestion(index);
   };
 
   const handleSubmitTest = async () => {
@@ -128,18 +129,27 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
       // Save the last question answer before submitting
       saveCurrentQuestionAnswer();
       
-      // Ensure the question statuses are properly updated in state before calculating results
-      // This is crucial for the last question
-      const updatedUserAnswers = [...userAnswers];
+      // Force a small delay to ensure state updates are processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Get the latest user answers
+      const finalUserAnswers = [...userAnswers];
+      
+      // For the last question, ensure it's properly updated
       const currentQuestionData = questions[currentQuestion];
       
       if (currentQuestionData?.type === "MCQ" && selectedOption) {
-        updatedUserAnswers[currentQuestion] = selectedOption;
+        finalUserAnswers[currentQuestion] = selectedOption;
       } else if (currentQuestionData?.type === "MSQ" && selectedOptions.length > 0) {
-        updatedUserAnswers[currentQuestion] = [...selectedOptions];
+        finalUserAnswers[currentQuestion] = [...selectedOptions];
       }
       
-      const results = calculateResults(questions, updatedUserAnswers);
+      const finalQuestionStatus = {...questionStatus};
+      
+      console.log("Before calculation - Last question status:", finalQuestionStatus[currentQuestion]);
+      console.log("Before calculation - Last question answer:", finalUserAnswers[currentQuestion]);
+      
+      const results = calculateResults(questions, finalUserAnswers);
       
       if (currentUser) {
         const testResponse = {
@@ -154,11 +164,11 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
           lossMarks: results.lossMarks,
           totalTime: timeSpent.reduce((a, b) => a + b, 0),
           questions: questions.map((q, index) => {
-            // Determine the correct status for each question, especially the last one
-            let status = questionStatus[index] || "notVisited";
-            const userAnswer = updatedUserAnswers[index];
+            // Get the final status for this question
+            let status = finalQuestionStatus[index] || "notVisited";
+            const userAnswer = finalUserAnswers[index];
             
-            // If this is the last question and it has an answer but the status doesn't reflect it
+            // For the current question, make sure the status reflects the answer
             if (index === currentQuestion && userAnswer) {
               if (Array.isArray(userAnswer) && userAnswer.length > 0) {
                 status = markedForReview ? "attemptedReview" : "attempted";
@@ -194,8 +204,8 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
             ...results,
             testResponseId: docRef.id,
             questions,
-            userAnswers: updatedUserAnswers,
-            questionStatus,
+            userAnswers: finalUserAnswers,
+            questionStatus: finalQuestionStatus,
             timeSpent,
             paperType
           }));
@@ -227,23 +237,7 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
     updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
     
     if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(prev => prev + 1);
-      
-      const nextQuestion = questions[currentQuestion + 1];
-      if (nextQuestion.type === "MCQ") {
-        const nextAnswer = userAnswers[currentQuestion + 1];
-        setSelectedOption(typeof nextAnswer === "string" ? nextAnswer : null);
-        setSelectedOptions([]);
-      } else if (nextQuestion.type === "MSQ") {
-        setSelectedOption(null);
-        const nextAnswer = userAnswers[currentQuestion + 1];
-        setSelectedOptions(Array.isArray(nextAnswer) ? nextAnswer : []);
-      } else {
-        setSelectedOption(null);
-        setSelectedOptions([]);
-      }
-      
-      setMarkedForReview(false);
+      moveToQuestion(currentQuestion + 1);
     }
   };
 
@@ -252,38 +246,38 @@ export const useTestControls = ({ questions, paperType, year }: UseTestControlsP
     
     if (currentQuestionData.type === "MCQ") {
       setSelectedOption(optionId);
+      // Immediately update the answer and status when selecting an MCQ option
+      updateAnswer(optionId);
+      updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
     } else if (currentQuestionData.type === "MSQ") {
-      setSelectedOptions(prev => {
-        if (prev.includes(optionId)) {
-          return prev.filter(id => id !== optionId);
-        } else {
-          return [...prev, optionId];
-        }
-      });
+      const newSelectedOptions = selectedOptions.includes(optionId)
+        ? selectedOptions.filter(id => id !== optionId)
+        : [...selectedOptions, optionId];
+      
+      setSelectedOptions(newSelectedOptions);
+      
+      // Immediately update the answer and status when selecting MSQ options
+      if (newSelectedOptions.length > 0) {
+        updateAnswer(newSelectedOptions);
+        updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
+      }
     }
   };
 
   return {
-    loading,
-    setLoading,
     submitting,
     currentQuestion,
     selectedOption,
     selectedOptions,
     markedForReview,
     setMarkedForReview,
-    userAnswers,
-    questionStatus,
-    timeSpent,
-    setTimeSpent,
-    remainingTime,
-    setRemainingTime,
     updateAnswer,
     handleOptionSelect,
     handleNextQuestion,
     handleSkipQuestion,
     handleJumpToQuestion,
     handleSubmitTest,
-    saveCurrentQuestionAnswer
+    saveCurrentQuestionAnswer,
+    updateQuestionStatus
   };
 };
