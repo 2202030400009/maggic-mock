@@ -31,7 +31,7 @@ interface TestHistory {
 }
 
 const Profile = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [testHistory, setTestHistory] = useState<TestHistory[]>([]);
@@ -86,7 +86,7 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate("/login");
     } catch (error) {
       console.error("Logout error:", error);
