@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,6 +20,7 @@ const DashboardNav = () => {
   const [pending, setPending] = useState(false);
   const { currentUser, signOut } = useAuth();
   const { paperType } = usePaper();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     try {
@@ -48,13 +49,36 @@ const DashboardNav = () => {
             </Link>
             
             <div className="ml-10 flex items-baseline space-x-4">
-              <Link to="/dashboard" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+              <Link 
+                to="/dashboard"
+
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  location.pathname === '/dashboard' 
+                    ? 'text-indigo-700 bg-indigo-50' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
                 Dashboard
               </Link>
-              <Link to="/create-test" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+              <Link 
+                to="/create-test"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  location.pathname === '/create-test' 
+                    ? 'text-indigo-700 bg-indigo-50' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
                 Create Test
               </Link>
-              <Link to="/profile" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+              <Link 
+                to="/profile"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  location.pathname === '/profile' 
+                    ? 'text-indigo-700 bg-indigo-50' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <User className="inline-block h-4 w-4 mr-1" />
                 Profile
               </Link>
             </div>
@@ -94,12 +118,6 @@ const DashboardNav = () => {
                   <DropdownMenuItem className="cursor-pointer">
                     <Book className="mr-2 h-4 w-4" />
                     <span>Create Test</span>
-                  </DropdownMenuItem>
-                </Link>
-                <Link to="/settings">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuSeparator />

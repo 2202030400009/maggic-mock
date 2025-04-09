@@ -58,7 +58,7 @@ const QuestionControls = ({
             </>
           ) : (
             <>
-              {isLastQuestion ? "Submit Test" : "Save & Next"}
+              {isLastQuestion ? "Save & Submit Test" : "Save & Next"}
               {!isLastQuestion && <ArrowRight className="ml-1 h-4 w-4" />}
             </>
           )}
