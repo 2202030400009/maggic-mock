@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, query, getDocs, collectionGroup } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePaper } from "@/context/PaperContext";
 import { Question } from "@/lib/types";
@@ -51,38 +51,54 @@ const QuestionList = () => {
       try {
         let fetchedQuestions: Question[] = [];
 
-        if (currentTab === "all" || currentTab === "general") {
-          // Fetch general questions
-          const generalCollectionName = `questions_${paperType?.replace(" ", "_")}`;
-          try {
-            const generalQSnapshot = await getDocs(collection(db, generalCollectionName));
-            generalQSnapshot.forEach((doc) => {
-              fetchedQuestions.push({ id: doc.id, ...doc.data() } as Question);
-            });
-          } catch (error) {
-            console.log(`Collection ${generalCollectionName} might not exist yet`, error);
-          }
+        // Try to fetch questions from the 'questions' collection first (regardless of tabs)
+        try {
+          const generalQSnapshot = await getDocs(collection(db, "questions"));
+          generalQSnapshot.forEach((doc) => {
+            fetchedQuestions.push({ id: doc.id, ...doc.data() } as Question);
+          });
+          console.log("Fetched general questions:", fetchedQuestions.length);
+        } catch (error) {
+          console.log("Error fetching from 'questions' collection:", error);
         }
 
-        if ((currentTab === "all" || currentTab === "pyq") && selectedYear) {
-          // Fetch PYQ questions for the selected year
-          const pyqCollectionName = `pyqQuestions_${paperType?.replace(" ", "_")}_${selectedYear}`;
-          try {
-            const pyqQSnapshot = await getDocs(collection(db, pyqCollectionName));
-            pyqQSnapshot.forEach((doc) => {
-              fetchedQuestions.push({ 
-                id: doc.id, 
-                ...doc.data(),
-                paperType: selectedYear // Add year info for display
-              } as Question);
-            });
-          } catch (error) {
-            console.log(`Collection ${pyqCollectionName} might not exist yet`, error);
+        // If paperType specific collection exists, get questions from there too
+        if (paperType) {
+          if (currentTab === "all" || currentTab === "general") {
+            // Fetch general questions from paper-specific collection
+            const generalCollectionName = `questions_${paperType?.replace(" ", "_")}`;
+            try {
+              const paperQSnapshot = await getDocs(collection(db, generalCollectionName));
+              paperQSnapshot.forEach((doc) => {
+                fetchedQuestions.push({ id: doc.id, ...doc.data() } as Question);
+              });
+              console.log(`Fetched ${paperType} questions:`, fetchedQuestions.length);
+            } catch (error) {
+              console.log(`Collection ${generalCollectionName} might not exist yet`, error);
+            }
+          }
+
+          if ((currentTab === "all" || currentTab === "pyq") && selectedYear) {
+            // Fetch PYQ questions for the selected year
+            const pyqCollectionName = `pyqQuestions_${paperType?.replace(" ", "_")}_${selectedYear}`;
+            try {
+              const pyqQSnapshot = await getDocs(collection(db, pyqCollectionName));
+              pyqQSnapshot.forEach((doc) => {
+                fetchedQuestions.push({ 
+                  id: doc.id, 
+                  ...doc.data(),
+                  paperType: selectedYear // Add year info for display
+                } as Question);
+              });
+              console.log(`Fetched ${selectedYear} PYQ questions:`, fetchedQuestions.length);
+            } catch (error) {
+              console.log(`Collection ${pyqCollectionName} might not exist yet`, error);
+            }
           }
         }
 
         setQuestions(fetchedQuestions);
-        console.log("Fetched questions:", fetchedQuestions.length);
+        console.log("Total fetched questions:", fetchedQuestions.length);
       } catch (error) {
         console.error("Error fetching questions:", error);
       } finally {
@@ -90,9 +106,7 @@ const QuestionList = () => {
       }
     };
 
-    if (paperType) {
-      fetchQuestions();
-    }
+    fetchQuestions();
   }, [paperType, currentTab, selectedYear]);
 
   // Filter questions based on search term

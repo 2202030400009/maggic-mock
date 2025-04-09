@@ -20,6 +20,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AddQuestion from "./pages/admin/AddQuestion";
 import QuestionList from "./pages/admin/QuestionList";
 import FeedbacksList from "./pages/admin/FeedbacksList";
+import TestResponsesList from "./pages/admin/TestResponsesList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -100,6 +101,12 @@ const App = () => (
               <Route path="/admin/feedbacks" element={
                 <AdminRoute>
                   <FeedbacksList />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/test-responses" element={
+                <AdminRoute>
+                  <TestResponsesList />
                 </AdminRoute>
               } />
               

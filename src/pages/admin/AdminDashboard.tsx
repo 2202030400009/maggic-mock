@@ -1,298 +1,123 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/context/AuthContext";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Users, MessageSquare, FileText, TrendingUp, Plus, List, BookOpen } from "lucide-react";
-import { AdminStats } from "@/lib/types";
-import PaperSwitcher from "@/components/PaperSwitcher";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FilePlus, FileText, List, MessageSquare } from "lucide-react";
 
 const AdminDashboard = () => {
-  const { signOut } = useAuth();
-  const navigate = useNavigate();
-  const [stats, setStats] = useState<AdminStats>({
-    totalUsers: 0,
-    totalFeedbacks: 0,
-    totalTests: 0,
-    averageScore: 0
-  });
-  const [recentFeedbacks, setRecentFeedbacks] = useState<any[]>([]);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [testResponsesCount, setTestResponsesCount] = useState(0);
+  const [feedbackCount, setFeedbackCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showYearDialog, setShowYearDialog] = useState(false);
-  const [selectedYear, setSelectedYear] = useState("2024");
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        // Get total users count
-        const usersSnapshot = await getDocs(collection(db, "users"));
-        const totalUsers = usersSnapshot.size;
+        // Get question count
+        const questionSnapshot = await getDocs(collection(db, "questions"));
+        setQuestionCount(questionSnapshot.size);
 
-        // Get feedbacks
-        const feedbacksQuery = query(
-          collection(db, "feedbacks"),
-          orderBy("timestamp", "desc"),
-          limit(5)
-        );
-        const feedbacksSnapshot = await getDocs(feedbacksQuery);
-        const feedbacks = feedbacksSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        const totalFeedbacks = feedbacksSnapshot.size;
+        // Get test responses count
+        const responsesSnapshot = await getDocs(collection(db, "testResponses"));
+        setTestResponsesCount(responsesSnapshot.size);
 
-        // Get tests data
-        const testsSnapshot = await getDocs(collection(db, "testResponses"));
-        const totalTests = testsSnapshot.size;
-        
-        // Calculate average score
-        let totalScore = 0;
-        testsSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          totalScore += data.scoredMarks || 0;
-        });
-        const averageScore = totalTests > 0 ? Math.round(totalScore / totalTests) : 0;
-
-        setStats({
-          totalUsers,
-          totalFeedbacks,
-          totalTests,
-          averageScore
-        });
-        setRecentFeedbacks(feedbacks);
-        setLoading(false);
+        // Get feedback count
+        const feedbackSnapshot = await getDocs(collection(db, "feedback"));
+        setFeedbackCount(feedbackSnapshot.size);
       } catch (error) {
-        console.error("Error fetching admin stats:", error);
+        console.error("Error fetching admin data:", error);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
+    fetchData();
   }, []);
 
-  const handleSelectYear = (year: string) => {
-    navigate(`/admin/add-question?type=pyq&year=${year}`);
-    setShowYearDialog(false);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">Admin Dashboard</h1>
-          <div className="flex gap-2">
-            <PaperSwitcher />
-            <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
-              User Dashboard
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => signOut()}>
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="container mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-10">Admin Dashboard</h1>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-md font-medium text-gray-500">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <Users className="h-5 w-5 text-indigo-500 mr-2" />
-                <span className="text-3xl font-bold">{stats.totalUsers}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-md font-medium text-gray-500">Total Feedbacks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <MessageSquare className="h-5 w-5 text-amber-500 mr-2" />
-                <span className="text-3xl font-bold">{stats.totalFeedbacks}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-md font-medium text-gray-500">Tests Taken</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <FileText className="h-5 w-5 text-green-500 mr-2" />
-                <span className="text-3xl font-bold">{stats.totalTests}</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-md font-medium text-gray-500">Average Score</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <TrendingUp className="h-5 w-5 text-blue-500 mr-2" />
-                <span className="text-3xl font-bold">{stats.averageScore}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Regular Questions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Add questions to the general question bank that will be used for personalized tests.
-              </p>
-              <Button onClick={() => navigate("/admin/add-question")} className="w-full bg-indigo-600 hover:bg-indigo-700">
-                <Plus className="mr-2 h-4 w-4" /> Add Regular Question
+      {loading ? (
+        <div className="text-center">Loading dashboard data...</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">
+                  Total Questions
+                </CardTitle>
+                <FileText className="h-5 w-5 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{questionCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">
+                  Test Attempts
+                </CardTitle>
+                <List className="h-5 w-5 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{testResponsesCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-gray-500">
+                  Feedbacks
+                </CardTitle>
+                <MessageSquare className="h-5 w-5 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{feedbackCount}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link to="/admin/add-question">
+              <Button variant="outline" className="w-full h-24">
+                <div className="flex flex-col items-center">
+                  <FilePlus className="h-6 w-6 mb-2" />
+                  <span>Add Question</span>
+                </div>
               </Button>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Add PYQ Questions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                Add questions for previous year papers. Each year needs exactly 65 questions.
-              </p>
-              <Dialog open={showYearDialog} onOpenChange={setShowYearDialog}>
-                <DialogTrigger asChild>
-                  <Button className="w-full bg-amber-600 hover:bg-amber-700">
-                    <BookOpen className="mr-2 h-4 w-4" /> Add PYQ Question
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Select Year</DialogTitle>
-                    <DialogDescription>
-                      Choose which year's paper you want to add questions to
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="py-4">
-                    <Select
-                      value={selectedYear}
-                      onValueChange={setSelectedYear}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select year" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="2020">2020</SelectItem>
-                        <SelectItem value="2021">2021</SelectItem>
-                        <SelectItem value="2022">2022</SelectItem>
-                        <SelectItem value="2023">2023</SelectItem>
-                        <SelectItem value="2024">2024</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowYearDialog(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={() => handleSelectYear(selectedYear)}>
-                      Continue
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Manage Questions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 mb-4">
-                View, edit, and delete questions from both regular and PYQ collections.
-              </p>
-              <Button onClick={() => navigate("/admin/questions")} className="w-full">
-                <List className="mr-2 h-4 w-4" /> View All Questions
+            </Link>
+            <Link to="/admin/questions">
+              <Button variant="outline" className="w-full h-24">
+                <div className="flex flex-col items-center">
+                  <FileText className="h-6 w-6 mb-2" />
+                  <span>Question Bank</span>
+                </div>
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Recent Feedbacks */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Feedbacks</h2>
-          
-          {loading ? (
-            <p className="text-center py-4">Loading recent feedbacks...</p>
-          ) : recentFeedbacks.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Message</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentFeedbacks.map((feedback) => (
-                  <TableRow key={feedback.id}>
-                    <TableCell className="font-medium">{feedback.name}</TableCell>
-                    <TableCell>{feedback.email}</TableCell>
-                    <TableCell className="max-w-xs truncate">{feedback.message}</TableCell>
-                    <TableCell>
-                      {feedback.timestamp?.toDate 
-                        ? feedback.timestamp.toDate().toLocaleDateString() 
-                        : "Unknown date"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-center py-4">No feedbacks found</p>
-          )}
-          
-          {recentFeedbacks.length > 0 && (
-            <div className="mt-4 flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => navigate("/admin/feedbacks")}>
-                View All
+            </Link>
+            <Link to="/admin/test-responses">
+              <Button variant="outline" className="w-full h-24">
+                <div className="flex flex-col items-center">
+                  <List className="h-6 w-6 mb-2" />
+                  <span>Test Responses</span>
+                </div>
               </Button>
-            </div>
-          )}
-        </div>
-      </main>
+            </Link>
+            <Link to="/admin/feedbacks">
+              <Button variant="outline" className="w-full h-24">
+                <div className="flex flex-col items-center">
+                  <MessageSquare className="h-6 w-6 mb-2" />
+                  <span>Feedbacks</span>
+                </div>
+              </Button>
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   );
 };

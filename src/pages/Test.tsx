@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -39,29 +38,24 @@ const Test = () => {
   const [questionStatus, setQuestionStatus] = useState<Record<number, string>>({});
   const [timeSpent, setTimeSpent] = useState<number[]>([]);
   
-  // Timer
   const [remainingTime, setRemainingTime] = useState<number>(10800); // Default 3 hours (180 minutes)
   
-  // Fetch test data or use session storage data
   useEffect(() => {
     const loadTest = async () => {
       try {
         let testParams: TestParams | null = null;
         
-        // Check if we have test params in session storage
         const storedParams = sessionStorage.getItem('testParams');
         
         if (storedParams) {
           testParams = JSON.parse(storedParams);
-          sessionStorage.removeItem('testParams'); // Clear after using
+          sessionStorage.removeItem('testParams');
         }
         
         if (testParams) {
-          // Use the stored test parameters
           setQuestions(testParams.questions);
-          setRemainingTime(testParams.duration * 60); // Convert minutes to seconds
+          setRemainingTime(testParams.duration * 60);
           
-          // Initialize answers and tracking arrays
           const answers = Array(testParams.questions.length).fill(null);
           setUserAnswers(answers);
           setTimeSpent(Array(testParams.questions.length).fill(0));
@@ -71,7 +65,6 @@ const Test = () => {
               .reduce((acc, _, index) => ({ ...acc, [index]: "notVisited" }), {})
           );
         } else if (year) {
-          // Fetch PYQ test data
           const collectionName = `pyqQuestions_${paperType?.replace(" ", "_")}_${year}`;
           
           const q = query(collection(db, collectionName));
@@ -103,11 +96,9 @@ const Test = () => {
             return;
           }
           
-          // Take exactly 65 questions for PYQ
           const selectedQuestions = fetchedQuestions.slice(0, 65);
           setQuestions(selectedQuestions);
           
-          // Initialize answers and tracking arrays
           const answers = Array(selectedQuestions.length).fill(null);
           setUserAnswers(answers);
           setTimeSpent(Array(selectedQuestions.length).fill(0));
@@ -117,10 +108,8 @@ const Test = () => {
               .reduce((acc, _, index) => ({ ...acc, [index]: "notVisited" }), {})
           );
           
-          // Set 3-hour time limit for PYQ tests (180 minutes)
-          setRemainingTime(10800); // 3 hours in seconds
+          setRemainingTime(10800);
         } else {
-          // No test parameters or year provided
           toast({
             title: "Error",
             description: "No test parameters found. Returning to dashboard.",
@@ -145,7 +134,6 @@ const Test = () => {
     loadTest();
   }, [year, paperType, toast, navigate]);
   
-  // Set up countdown timer
   useEffect(() => {
     if (loading) return;
     
@@ -161,9 +149,8 @@ const Test = () => {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading]);
   
-  // Track time spent on each question
   useEffect(() => {
     if (loading) return;
     
@@ -186,7 +173,6 @@ const Test = () => {
     };
   }, [currentQuestion, loading]);
   
-  // Handle fullscreen change
   useEffect(() => {
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
@@ -221,14 +207,12 @@ const Test = () => {
       return updated;
     });
     
-    // For NAT questions, update status as attempted when an answer is provided
     const currentQuestionData = questions[currentQuestion];
     if (currentQuestionData?.type === "NAT" && answer && answer.toString().trim() !== '') {
       updateQuestionStatus(markedForReview ? "attemptedReview" : "attempted");
     }
   };
 
-  // Helper function to save the current question's answer and status
   const saveCurrentQuestionAnswer = () => {
     const currentQuestionData = questions[currentQuestion];
     
@@ -251,16 +235,13 @@ const Test = () => {
   };
 
   const handleNextQuestion = () => {
-    // Save the current question's answer and status
     saveCurrentQuestionAnswer();
-
-    // Move to next question or submit if last
+    
     if (currentQuestion === questions.length - 1) {
       handleSubmitTest();
     } else {
       setCurrentQuestion(prev => prev + 1);
       
-      // Reset selections based on question type for the next question
       const nextQuestion = questions[currentQuestion + 1];
       if (nextQuestion.type === "MCQ") {
         const nextAnswer = userAnswers[currentQuestion + 1];
@@ -280,12 +261,10 @@ const Test = () => {
   };
 
   const handleJumpToQuestion = (index: number) => {
-    // Save the current question before jumping
     saveCurrentQuestionAnswer();
-
+    
     setCurrentQuestion(index);
     
-    // Reset selections based on question type
     const nextQuestion = questions[index];
     if (nextQuestion.type === "MCQ") {
       const nextAnswer = userAnswers[index];
@@ -305,16 +284,13 @@ const Test = () => {
 
   const handleSubmitTest = async () => {
     try {
-      if (submitting) return; // Prevent multiple submissions
+      if (submitting) return;
       setSubmitting(true);
       
-      // Save the current question's answer before submitting
       saveCurrentQuestionAnswer();
       
-      // Calculate results
       const results = calculateResults(questions, userAnswers);
       
-      // Store test results in Firestore
       if (currentUser) {
         const testResponse = {
           userId: currentUser.uid,
@@ -349,7 +325,6 @@ const Test = () => {
           const docRef = await addDoc(collection(db, "testResponses"), testResponse);
           console.log("Test submission successful with ID:", docRef.id);
           
-          // Store results in session storage for the result page
           sessionStorage.setItem('testResults', JSON.stringify({
             ...results,
             testResponseId: docRef.id,
@@ -360,7 +335,6 @@ const Test = () => {
             paperType
           }));
           
-          // Exit fullscreen
           if (document.fullscreenElement) {
             document.exitFullscreen();
           }
@@ -402,10 +376,10 @@ const Test = () => {
 
   const handleSkipQuestion = () => {
     updateQuestionStatus(markedForReview ? "skippedReview" : "skipped");
+    
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
       
-      // Reset selections based on question type
       const nextQuestion = questions[currentQuestion + 1];
       if (nextQuestion.type === "MCQ") {
         const nextAnswer = userAnswers[currentQuestion + 1];
@@ -423,7 +397,7 @@ const Test = () => {
       setMarkedForReview(false);
     }
   };
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -453,7 +427,6 @@ const Test = () => {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Question Panel */}
         <div className="flex-1 p-6 overflow-auto">
           <QuestionDisplay
             currentQuestionData={currentQuestionData}
@@ -476,7 +449,6 @@ const Test = () => {
           />
         </div>
 
-        {/* Question Palette */}
         <QuestionPalette 
           questionsCount={questions.length}
           questionStatus={questionStatus}
