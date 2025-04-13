@@ -1,107 +1,204 @@
 
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import { usePaper } from "@/context/PaperContext";
-import { BookOpen, AlertTriangle } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const Instructions = () => {
-  const [accepted, setAccepted] = useState(false);
-  const { year } = useParams<{ year: string }>();
+  const { year, testId } = useParams();
   const { paperType } = usePaper();
   const navigate = useNavigate();
+  const [specialTest, setSpecialTest] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const startTest = () => {
-    if (!accepted) return;
+  // Fetch special test data if testId is provided
+  useEffect(() => {
+    const fetchSpecialTest = async () => {
+      if (!testId) return;
+      
+      setLoading(true);
+      try {
+        const testDocRef = doc(db, "specialTests", testId);
+        const testSnapshot = await getDoc(testDocRef);
+        
+        if (testSnapshot.exists()) {
+          setSpecialTest({ id: testSnapshot.id, ...testSnapshot.data() });
+        } else {
+          setError("Special test not found");
+        }
+      } catch (err) {
+        console.error("Error fetching special test:", err);
+        setError("Failed to load test data");
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    try {
-      document.documentElement.requestFullscreen();
-      navigate(`/test/${year}`);
-    } catch (error) {
-      console.error("Fullscreen failed:", error);
+    if (testId) {
+      fetchSpecialTest();
+    }
+  }, [testId]);
+
+  const handleStartTest = () => {
+    if (testId) {
+      navigate(`/test/special/${testId}`);
+    } else if (year) {
       navigate(`/test/${year}`);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <BookOpen className="h-6 w-6 text-indigo-600" />
-            <h1 className="text-xl font-bold">MaggicMock</h1>
-          </div>
-          <span className="text-sm font-medium text-gray-700">{paperType}</span>
-        </div>
-      </header>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <CardTitle className="text-center">Loading Test Information...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-2xl font-bold mb-6 flex items-center">
-            {paperType} {year} - Test Instructions
-          </h2>
-
-          <div className="space-y-4 mb-8">
-            <div className="flex items-start">
-              <AlertTriangle className="h-6 w-6 text-amber-500 mr-2 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-lg">Before you begin:</h3>
-                <p className="text-gray-700">
-                  The test will run in fullscreen mode. Exiting fullscreen will prompt a confirmation dialog.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-              <h3 className="font-semibold mb-2">Test Details:</h3>
-              <ul className="space-y-1 text-gray-700">
-                <li>• Total Questions: 65</li>
-                <li>• Total Marks: 180</li>
-                <li>• Time: 3 hours (180 minutes)</li>
-                <li>• Negative Marking: 1/3 for 1 mark questions, 2/3 for 2 mark questions</li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-2">Navigation and Marking:</h3>
-              <ul className="space-y-1 text-gray-700">
-                <li>• You can attempt questions in any order using the question palette.</li>
-                <li>• Questions can be marked for review and revisited later.</li>
-                <li>• Color coding indicates the status of each question (attempted, skipped, etc.)</li>
-                <li>• Only attempted questions (including those marked for review) will be evaluated.</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 mb-6">
-            <Checkbox 
-              id="terms" 
-              checked={accepted} 
-              onCheckedChange={(checked) => setAccepted(checked === true)}
-            />
-            <label 
-              htmlFor="terms" 
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              I have read and understood the instructions
-            </label>
-          </div>
-
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <CardTitle className="text-center text-red-500">Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center">{error}</p>
+          </CardContent>
+          <CardFooter className="flex justify-center">
+            <Button onClick={() => navigate("/dashboard")}>
               Return to Dashboard
             </Button>
-            <Button 
-              onClick={startTest} 
-              disabled={!accepted}
-              className="bg-indigo-600 hover:bg-indigo-700"
-            >
-              Start Test
-            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-3xl">
+        <CardHeader>
+          <CardTitle className="text-center text-2xl">
+            {specialTest ? specialTest.name : `${paperType} ${year} Test Instructions`}
+          </CardTitle>
+          {specialTest?.description && (
+            <CardDescription className="text-center">
+              {specialTest.description}
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Test Details */}
+          <div className="bg-indigo-50 p-4 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Total Questions</p>
+              <p className="font-medium text-lg">
+                {specialTest ? specialTest.numQuestions : "65"}
+              </p>
+            </div>
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Total Time</p>
+              <p className="font-medium text-lg">
+                {specialTest ? `${specialTest.duration} minutes` : "3 hours"}
+              </p>
+            </div>
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Maximum Marks</p>
+              <p className="font-medium text-lg">180</p>
+            </div>
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Test Mode</p>
+              <p className="font-medium text-lg">Online</p>
+            </div>
           </div>
-        </div>
-      </main>
+
+          <Separator />
+
+          {/* General Instructions */}
+          <div>
+            <h3 className="font-semibold text-lg mb-3">General Instructions:</h3>
+            <ul className="space-y-2">
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>The test consists of multiple-choice questions (MCQs), multiple-select questions (MSQs), and numerical answer type (NAT) questions.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>Each question has marks assigned to it, visible at the top right of the question.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>Some questions may have negative marking. This will be indicated in the question.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>You can move freely between questions and review your answers before submitting.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>Questions can be marked for review to revisit them later.</span>
+              </li>
+            </ul>
+          </div>
+
+          <Separator />
+
+          {/* Important Notes */}
+          <div>
+            <h3 className="font-semibold text-lg mb-3">Important Notes:</h3>
+            <ul className="space-y-2">
+              <li className="flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500 shrink-0 mt-0.5" />
+                <span>The test will automatically submit when the timer reaches zero.</span>
+              </li>
+              <li className="flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500 shrink-0 mt-0.5" />
+                <span>Do not refresh or close the browser window during the test.</span>
+              </li>
+              <li className="flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500 shrink-0 mt-0.5" />
+                <span>Ensure a stable internet connection before starting.</span>
+              </li>
+            </ul>
+          </div>
+
+          <Separator />
+
+          {/* Declaration */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="font-medium mb-2">Declaration:</p>
+            <p className="text-sm text-gray-700">
+              I have read and understood all the instructions. I agree to follow them and take the test with integrity.
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </Button>
+          <Button onClick={handleStartTest}>
+            Start Test
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

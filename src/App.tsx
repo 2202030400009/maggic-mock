@@ -21,6 +21,9 @@ import AddQuestion from "./pages/admin/AddQuestion";
 import QuestionList from "./pages/admin/QuestionList";
 import FeedbacksList from "./pages/admin/FeedbacksList";
 import TestResponsesList from "./pages/admin/TestResponsesList";
+import CreateSpecialTest from "./pages/admin/CreateSpecialTest";
+import SpecialTestsList from "./pages/admin/SpecialTestsList";
+import SpecialTestAddQuestions from "./pages/admin/SpecialTestAddQuestions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,7 +64,19 @@ const App = () => (
                 </ProtectedRoute>
               } />
               
+              <Route path="/instructions/special/:testId" element={
+                <ProtectedRoute>
+                  <Instructions />
+                </ProtectedRoute>
+              } />
+              
               <Route path="/test/:year" element={
+                <ProtectedRoute>
+                  <Test />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/test/special/:testId" element={
                 <ProtectedRoute>
                   <Test />
                 </ProtectedRoute>
@@ -95,6 +110,24 @@ const App = () => (
               <Route path="/admin/questions" element={
                 <AdminRoute>
                   <QuestionList />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/special-tests" element={
+                <AdminRoute>
+                  <SpecialTestsList />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/create-special-test" element={
+                <AdminRoute>
+                  <CreateSpecialTest />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/special-test/:testId/add-questions" element={
+                <AdminRoute>
+                  <SpecialTestAddQuestions />
                 </AdminRoute>
               } />
               

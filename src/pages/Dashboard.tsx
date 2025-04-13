@@ -1,13 +1,16 @@
 
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePaper } from "@/context/PaperContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, FileText, Settings, LogOut, Shield, RefreshCw } from "lucide-react";
+import { BookOpen, FileText, Settings, LogOut, Shield, BrainCircuit } from "lucide-react";
 import FeedbackButton from "@/components/FeedbackButton";
 import PaperSwitcher from "@/components/PaperSwitcher";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const YearPaperCard = ({ year, paperType }: { year: number; paperType: string }) => {
   const navigate = useNavigate();
@@ -37,13 +40,86 @@ const YearPaperCard = ({ year, paperType }: { year: number; paperType: string })
   );
 };
 
+interface SpecialTest {
+  id: string;
+  name: string;
+  description?: string;
+  numQuestions: number;
+  duration: number;
+  paperType: string;
+}
+
+const SpecialTestCard = ({ test }: { test: SpecialTest }) => {
+  const navigate = useNavigate();
+  
+  return (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">{test.name}</CardTitle>
+        {test.description && <CardDescription>{test.description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="pb-2">
+        <CardDescription className="space-y-1">
+          <p>{test.numQuestions} Questions</p>
+          <p>{test.duration} Minutes</p>
+          <p>Special Test</p>
+        </CardDescription>
+      </CardContent>
+      <CardFooter>
+        <Button 
+          variant="outline" 
+          className="w-full" 
+          onClick={() => navigate(`/instructions/special/${test.id}`)}
+        >
+          Start Test
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+};
+
 const Dashboard = () => {
   const { signOut, isAdmin } = useAuth();
   const { paperType } = usePaper();
   const navigate = useNavigate();
+  const [specialTests, setSpecialTests] = useState<SpecialTest[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Generate years from 2025 down to 2015
   const years = Array.from({ length: 11 }, (_, i) => 2025 - i);
+  
+  // Fetch special tests
+  useEffect(() => {
+    const fetchSpecialTests = async () => {
+      try {
+        // Only fetch special tests for the current paper type
+        const q = query(
+          collection(db, "specialTests"),
+          where("paperType", "==", paperType)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const tests: SpecialTest[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          tests.push({
+            id: doc.id,
+            ...doc.data()
+          } as SpecialTest);
+        });
+        
+        setSpecialTests(tests);
+      } catch (error) {
+        console.error("Error fetching special tests:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (paperType) {
+      fetchSpecialTests();
+    }
+  }, [paperType]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -82,6 +158,27 @@ const Dashboard = () => {
             ))}
           </div>
         </section>
+
+        {/* Special Tests Section */}
+        {specialTests.length > 0 && (
+          <>
+            <Separator className="my-8" />
+            
+            <section className="mb-12">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold flex items-center">
+                  <BrainCircuit className="h-6 w-6 mr-2 text-indigo-600" />
+                  Special Tests
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {specialTests.map((test) => (
+                  <SpecialTestCard key={test.id} test={test} />
+                ))}
+              </div>
+            </section>
+          </>
+        )}
 
         <Separator className="my-8" />
 

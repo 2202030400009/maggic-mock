@@ -1,6 +1,8 @@
 
 import { Question, TestParams } from "@/lib/types";
 import { fetchQuestions, shuffleArray } from "@/utils/test-utils";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // Process questions and prepare them for test
 export const processQuestions = async (
@@ -59,4 +61,39 @@ export const generateMultiSubjectTest = async (
     subjects: subjects
   });
   return processQuestions(questions, numQuestions, duration, "Multi-Subject Test");
+};
+
+// Generate special test
+export const generateSpecialTest = async (
+  testId: string
+): Promise<TestParams | null> => {
+  try {
+    const testDocRef = doc(db, "specialTests", testId);
+    const testSnapshot = await getDoc(testDocRef);
+    
+    if (!testSnapshot.exists()) {
+      console.error("Special test not found");
+      return null;
+    }
+    
+    const testData = testSnapshot.data();
+    const questions = testData.questions || [];
+    
+    // If there are no questions, return null
+    if (questions.length === 0) {
+      console.error("No questions in this special test");
+      return null;
+    }
+    
+    const testParams: TestParams = {
+      questions: questions,
+      duration: testData.duration,
+      testType: "Special Test"
+    };
+    
+    return testParams;
+  } catch (error) {
+    console.error("Error generating special test:", error);
+    return null;
+  }
 };
