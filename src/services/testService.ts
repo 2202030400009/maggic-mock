@@ -1,7 +1,7 @@
 
 import { Question, TestParams } from "@/lib/types";
 import { fetchQuestions, shuffleArray } from "@/utils/test-utils";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 // Process questions and prepare them for test
@@ -77,13 +77,20 @@ export const generateSpecialTest = async (
     }
     
     const testData = testSnapshot.data();
-    const questions = testData.questions || [];
     
-    // If there are no questions, return null
-    if (questions.length === 0) {
+    // Fetch questions for this special test
+    const questionsCollectionRef = collection(db, `specialTests/${testId}/questions`);
+    const questionsSnapshot = await getDocs(questionsCollectionRef);
+    
+    if (questionsSnapshot.empty) {
       console.error("No questions in this special test");
       return null;
     }
+    
+    const questions: Question[] = [];
+    questionsSnapshot.forEach(doc => {
+      questions.push({ id: doc.id, ...doc.data() } as Question);
+    });
     
     const testParams: TestParams = {
       questions: questions,

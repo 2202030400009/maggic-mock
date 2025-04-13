@@ -32,7 +32,8 @@ const TestContainer: React.FC = () => {
     questionStatus,
     setQuestionStatus,
     remainingTime,
-    setRemainingTime
+    setRemainingTime,
+    error: testLoadError
   } = useTestLoader(year, paperType);
 
   // Special test handling
@@ -74,23 +75,12 @@ const TestContainer: React.FC = () => {
   // Determine which questions to use
   const finalQuestions = testId ? specialTestQuestions : regularQuestions;
   const finalLoading = testId ? specialTestLoading : regularLoading;
-  const finalError = testId ? specialTestError : null;
+  const finalError = testId ? specialTestError : testLoadError;
   
   // Set up test duration (in minutes)
   const testDuration = testId && specialTestDuration 
     ? specialTestDuration * 60 // Convert minutes to seconds
     : 180 * 60; // Default 3 hours in seconds
-
-  // Initialize test timer
-  useTestTimer({
-    loading: finalLoading,
-    remainingTime,
-    setRemainingTime,
-    currentQuestion: 0, // This will be updated by the test controls
-    timeSpent,
-    setTimeSpent,
-    handleSubmitTest: () => {} // Will be replaced by the actual function
-  });
 
   // Initialize test controls
   const {
@@ -117,6 +107,17 @@ const TestContainer: React.FC = () => {
     setQuestionStatus
   });
 
+  // Initialize test timer
+  useTestTimer({
+    loading: finalLoading,
+    remainingTime,
+    setRemainingTime,
+    currentQuestion,
+    timeSpent,
+    setTimeSpent,
+    handleSubmitTest
+  });
+
   useFullscreenMonitor();
 
   // Submit test when time runs out
@@ -133,18 +134,7 @@ const TestContainer: React.FC = () => {
 
   // Calculate test results
   const { calculateResults } = useTestResults();
-
-  // Format time as HH:MM:SS
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
   
-  const formattedTime = formatTime(remainingTime);
-
   // If the test is still loading, show a loading message
   if (finalLoading) {
     return (

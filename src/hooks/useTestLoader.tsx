@@ -5,6 +5,7 @@ import { collection, query, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Question } from "@/lib/types";
+import { generateSpecialTest } from "@/services/testService";
 
 interface TestParams {
   questions: Question[];
@@ -21,32 +22,44 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
   const [timeSpent, setTimeSpent] = useState<number[]>([]);
   const [questionStatus, setQuestionStatus] = useState<Record<number, string>>({});
   const [remainingTime, setRemainingTime] = useState<number>(10800);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadTest = async () => {
       try {
         let testParams: TestParams | null = null;
+        const params = new URLSearchParams(window.location.search);
+        const testId = window.location.pathname.includes('/test/special/') 
+          ? window.location.pathname.split('/test/special/')[1]
+          : null;
         
         const storedParams = sessionStorage.getItem('testParams');
         
         if (storedParams) {
           testParams = JSON.parse(storedParams);
           sessionStorage.removeItem('testParams');
-        }
+        } 
         
-        if (testParams) {
-          setQuestions(testParams.questions);
-          setRemainingTime(testParams.duration * 60);
+        // Handle special test case
+        else if (testId) {
+          console.log("Loading special test with ID:", testId);
+          const specialTestParams = await generateSpecialTest(testId);
           
-          const answers = Array(testParams.questions.length).fill(null);
-          setUserAnswers(answers);
-          setTimeSpent(Array(testParams.questions.length).fill(0));
-          setQuestionStatus(
-            Array(testParams.questions.length)
-              .fill(0)
-              .reduce((acc, _, index) => ({ ...acc, [index]: "notVisited" }), {})
-          );
-        } else if (year) {
+          if (specialTestParams) {
+            testParams = specialTestParams;
+          } else {
+            setError("Failed to load special test. Please try again.");
+            toast({
+              title: "Error",
+              description: "Failed to load special test. Please try again.",
+              variant: "destructive",
+            });
+            navigate("/dashboard");
+            return;
+          }
+        }
+        // Handle PYQ test case
+        else if (year) {
           const collectionName = `pyqQuestions_${paperType?.replace(" ", "_")}_${year}`;
           
           const q = query(collection(db, collectionName));
@@ -59,6 +72,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
           });
           
           if (fetchedQuestions.length === 0) {
+            setError("No questions found");
             toast({
               title: "No questions found",
               description: `No questions found for ${paperType} ${year}. Please try another paper.`,
@@ -79,19 +93,13 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
           }
           
           const selectedQuestions = fetchedQuestions.slice(0, 65);
-          setQuestions(selectedQuestions);
-          
-          const answers = Array(selectedQuestions.length).fill(null);
-          setUserAnswers(answers);
-          setTimeSpent(Array(selectedQuestions.length).fill(0));
-          setQuestionStatus(
-            Array(selectedQuestions.length)
-              .fill(0)
-              .reduce((acc, _, index) => ({ ...acc, [index]: "notVisited" }), {})
-          );
-          
-          setRemainingTime(10800);
+          testParams = {
+            questions: selectedQuestions,
+            duration: 180,
+            testType: "PYQ"
+          };
         } else {
+          setError("No test parameters found");
           toast({
             title: "Error",
             description: "No test parameters found. Returning to dashboard.",
@@ -101,9 +109,34 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
           return;
         }
         
+        // Process test parameters
+        if (testParams && testParams.questions) {
+          setQuestions(testParams.questions);
+          setRemainingTime(testParams.duration * 60); // Convert minutes to seconds
+          
+          const answers = Array(testParams.questions.length).fill(null);
+          setUserAnswers(answers);
+          setTimeSpent(Array(testParams.questions.length).fill(0));
+          setQuestionStatus(
+            Array(testParams.questions.length)
+              .fill(0)
+              .reduce((acc, _, index) => ({ ...acc, [index]: "notVisited" }), {})
+          );
+        } else {
+          setError("Invalid test parameters");
+          toast({
+            title: "Error",
+            description: "Invalid test parameters. Returning to dashboard.",
+            variant: "destructive",
+          });
+          navigate("/dashboard");
+          return;
+        }
+        
         setLoading(false);
       } catch (error) {
         console.error("Error loading test:", error);
+        setError("Failed to load test");
         toast({
           title: "Error",
           description: "Failed to load test data. Please try again.",
@@ -126,6 +159,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
     questionStatus,
     setQuestionStatus,
     remainingTime,
-    setRemainingTime
+    setRemainingTime,
+    error
   };
 };

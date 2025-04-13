@@ -13,8 +13,9 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { usePaper } from "@/context/PaperContext";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Question } from "@/lib/types";
 
 const Instructions = () => {
   const { year, testId } = useParams();
@@ -23,6 +24,7 @@ const Instructions = () => {
   const [specialTest, setSpecialTest] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalMarks, setTotalMarks] = useState<number>(180);
 
   // Fetch special test data if testId is provided
   useEffect(() => {
@@ -35,7 +37,21 @@ const Instructions = () => {
         const testSnapshot = await getDoc(testDocRef);
         
         if (testSnapshot.exists()) {
-          setSpecialTest({ id: testSnapshot.id, ...testSnapshot.data() });
+          const testData = testSnapshot.data();
+          setSpecialTest({ id: testSnapshot.id, ...testData });
+          
+          // Fetch questions to calculate total marks for special tests
+          const questionsCollectionRef = collection(db, `specialTests/${testId}/questions`);
+          const questionsSnapshot = await getDocs(questionsCollectionRef);
+          
+          if (!questionsSnapshot.empty) {
+            let questionMarks = 0;
+            questionsSnapshot.forEach(doc => {
+              const question = doc.data() as Question;
+              questionMarks += question.marks || 0;
+            });
+            setTotalMarks(questionMarks);
+          }
         } else {
           setError("Special test not found");
         }
@@ -122,7 +138,7 @@ const Instructions = () => {
             </div>
             <div className="space-y-1 text-center md:text-left">
               <p className="text-sm text-gray-500">Maximum Marks</p>
-              <p className="font-medium text-lg">180</p>
+              <p className="font-medium text-lg">{totalMarks}</p>
             </div>
             <div className="space-y-1 text-center md:text-left">
               <p className="text-sm text-gray-500">Test Mode</p>
