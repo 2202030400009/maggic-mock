@@ -11,7 +11,7 @@ const statusColors = {
   skippedReview: "bg-orange-500 text-white"
 };
 
-interface QuestionPaletteProps {
+export interface QuestionPaletteProps {
   questionsCount: number;
   questionStatus: Record<number, string>;
   currentQuestion: number;

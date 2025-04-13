@@ -21,12 +21,21 @@ const TestContainer: React.FC = () => {
   const { paperType } = usePaper();
   const [testTypeDisplay, setTestTypeDisplay] = useState("");
 
+  // Load questions from regular tests (PYQs)
   const {
-    questions,
-    loading,
-    error,
+    questions: regularQuestions,
+    loading: regularLoading,
+    userAnswers,
+    setUserAnswers,
+    timeSpent,
+    setTimeSpent,
+    questionStatus,
+    setQuestionStatus,
+    remainingTime,
+    setRemainingTime
   } = useTestLoader(year, paperType);
 
+  // Special test handling
   const [specialTestQuestions, setSpecialTestQuestions] = useState<Question[]>([]);
   const [specialTestLoading, setSpecialTestLoading] = useState(false);
   const [specialTestError, setSpecialTestError] = useState<string | null>(null);
@@ -63,45 +72,56 @@ const TestContainer: React.FC = () => {
   }, [testId]);
 
   // Determine which questions to use
-  const finalQuestions = testId ? specialTestQuestions : questions;
-  const finalLoading = testId ? specialTestLoading : loading;
-  const finalError = testId ? specialTestError : error;
+  const finalQuestions = testId ? specialTestQuestions : regularQuestions;
+  const finalLoading = testId ? specialTestLoading : regularLoading;
+  const finalError = testId ? specialTestError : null;
   
   // Set up test duration (in minutes)
   const testDuration = testId && specialTestDuration 
     ? specialTestDuration * 60 // Convert minutes to seconds
     : 180 * 60; // Default 3 hours in seconds
 
-  const {
-    timeRemaining,
-    formattedTime,
-    testEndTime,
+  // Initialize test timer
+  useTestTimer({
+    loading: finalLoading,
+    remainingTime,
+    setRemainingTime,
+    currentQuestion: 0, // This will be updated by the test controls
     timeSpent,
-  } = useTestTimer(testDuration);
+    setTimeSpent,
+    handleSubmitTest: () => {} // Will be replaced by the actual function
+  });
 
+  // Initialize test controls
   const {
+    submitting,
     currentQuestion,
-    userAnswers,
-    questionStatuses,
-    markedForReview,
     selectedOption,
     selectedOptions,
-    natAnswer,
-    goToQuestion,
-    goToNextQuestion,
-    goToPreviousQuestion,
-    updateAnswer,
+    markedForReview,
     setMarkedForReview,
+    updateAnswer,
     handleOptionSelect,
-    updateQuestionStatus,
+    handleNextQuestion,
+    handleSkipQuestion,
+    handleJumpToQuestion,
     handleSubmitTest,
-  } = useTestControls(finalQuestions, timeRemaining);
+    updateQuestionStatus
+  } = useTestControls({ 
+    questions: finalQuestions, 
+    paperType, 
+    year,
+    userAnswers,
+    setUserAnswers,
+    questionStatus,
+    setQuestionStatus
+  });
 
   useFullscreenMonitor();
 
   // Submit test when time runs out
   useEffect(() => {
-    if (timeRemaining <= 0 && finalQuestions.length > 0) {
+    if (remainingTime <= 0 && finalQuestions.length > 0) {
       toast({
         title: "Time's up!",
         description: "Your test has been automatically submitted.",
@@ -109,16 +129,21 @@ const TestContainer: React.FC = () => {
       });
       handleSubmitTest();
     }
-  }, [timeRemaining, finalQuestions.length, handleSubmitTest]);
+  }, [remainingTime, finalQuestions.length, handleSubmitTest]);
 
   // Calculate test results
-  useTestResults(
-    finalQuestions,
-    userAnswers,
-    questionStatuses,
-    timeSpent,
-    testTypeDisplay || (year ? `${paperType} ${year}` : "Custom Test")
-  );
+  const { calculateResults } = useTestResults();
+
+  // Format time as HH:MM:SS
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  const formattedTime = formatTime(remainingTime);
 
   // If the test is still loading, show a loading message
   if (finalLoading) {
@@ -153,10 +178,11 @@ const TestContainer: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <QuestionHeader 
-        formattedTime={formattedTime} 
-        currentQuestion={currentQuestion} 
-        totalQuestions={finalQuestions.length} 
-        onSubmit={handleSubmitTest} 
+        paperType={paperType}
+        year={year}
+        currentQuestion={currentQuestion}
+        totalQuestions={finalQuestions.length}
+        remainingTime={remainingTime}
       />
 
       <div className="container mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
@@ -178,19 +204,20 @@ const TestContainer: React.FC = () => {
           <QuestionControls
             currentQuestion={currentQuestion}
             totalQuestions={finalQuestions.length}
-            goToNextQuestion={goToNextQuestion}
-            goToPreviousQuestion={goToPreviousQuestion}
-            handleSubmitTest={handleSubmitTest}
+            handleNextQuestion={handleNextQuestion}
+            handleSkipQuestion={handleSkipQuestion}
+            submitting={submitting}
+            questionType={finalQuestions[currentQuestion]?.type}
           />
         </div>
 
         {/* Question palette */}
         <div className="lg:w-1/4">
           <QuestionPalette
-            questions={finalQuestions}
+            questionsCount={finalQuestions.length}
+            questionStatus={questionStatus}
             currentQuestion={currentQuestion}
-            questionStatuses={questionStatuses}
-            goToQuestion={goToQuestion}
+            onJumpToQuestion={handleJumpToQuestion}
           />
         </div>
       </div>

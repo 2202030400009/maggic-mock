@@ -1,7 +1,7 @@
 
 import { cn } from "@/lib/utils";
 
-interface QuestionHeaderProps {
+export interface QuestionHeaderProps {
   paperType: string | null;
   year?: string;
   currentQuestion: number;

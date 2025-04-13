@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Question } from "@/lib/types";
 import { useTestResults } from "@/hooks/useTestResults";
 
-interface UseTestControlsProps {
+export interface UseTestControlsProps {
   questions: Question[];
   paperType: string | null;
   year?: string;

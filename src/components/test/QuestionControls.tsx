@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { QuestionType } from "@/lib/types";
 
-interface QuestionControlsProps {
+export interface QuestionControlsProps {
   currentQuestion: number;
   totalQuestions: number;
   handleNextQuestion: () => void;

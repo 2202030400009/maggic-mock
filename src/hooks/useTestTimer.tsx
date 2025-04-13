@@ -1,7 +1,7 @@
 
 import { useEffect } from "react";
 
-interface UseTestTimerProps {
+export interface UseTestTimerProps {
   loading: boolean;
   remainingTime: number;
   setRemainingTime: React.Dispatch<React.SetStateAction<number>>;
@@ -61,5 +61,6 @@ export const useTestTimer = ({
     };
   }, [currentQuestion, loading, setTimeSpent]);
 
+  // We don't need to return anything as we're using the state directly
   return null;
 };
