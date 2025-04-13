@@ -80,7 +80,21 @@ export const generateSpecialTest = async (
     const testData = testSnapshot.data();
     console.log("Test data retrieved:", testData);
     
-    // Fetch questions for this special test
+    // Check if the test has questions directly embedded
+    if (testData.questions && Array.isArray(testData.questions) && testData.questions.length > 0) {
+      console.log(`Using ${testData.questions.length} embedded questions for special test`);
+      
+      const testParams: TestParams = {
+        questions: testData.questions as Question[],
+        duration: testData.duration || 60, // Default 60 minutes if not specified
+        testType: "Special Test"
+      };
+      
+      return testParams;
+    }
+    
+    // If no embedded questions, try to fetch from subcollection
+    console.log("No embedded questions found, checking questions subcollection");
     const questionsCollectionRef = collection(db, `specialTests/${testId}/questions`);
     const questionsSnapshot = await getDocs(questionsCollectionRef);
     

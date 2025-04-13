@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc, updateDoc, arrayUnion, addDoc, collection } from "firebase/firestore";
@@ -21,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Question } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, Save } from "lucide-react";
+import { AlertTriangle, Eye, Save } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +29,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import PaperSwitcher from "@/components/PaperSwitcher";
 
 const formSchema = z.object({
@@ -54,11 +58,10 @@ const SpecialTestAddQuestions = () => {
   const [testData, setTestData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [questionLimitReached, setQuestionLimitReached] = useState(false);
   
-  // Get subject list based on paper type
   const subjectList = paperType === "GATE CS" ? gateCSSubjects : gateDASubjects;
   
-  // Load test data
   useEffect(() => {
     const fetchTestData = async () => {
       try {
@@ -68,7 +71,12 @@ const SpecialTestAddQuestions = () => {
         const testSnapshot = await getDoc(testDocRef);
         
         if (testSnapshot.exists()) {
-          setTestData({ id: testSnapshot.id, ...testSnapshot.data() });
+          const data = { id: testSnapshot.id, ...testSnapshot.data() };
+          setTestData(data);
+          
+          const questionCount = data.questions?.length || 0;
+          const questionLimit = data.numQuestions || 0;
+          setQuestionLimitReached(questionCount >= questionLimit);
         } else {
           toast({
             title: "Error",
@@ -113,7 +121,6 @@ const SpecialTestAddQuestions = () => {
   const marks = form.watch("marks");
   const imageUrl = form.watch("imageUrl");
 
-  // Calculate negative marks based on question type and marks
   const calculateNegativeMarks = () => {
     if (questionType === "MCQ") {
       return marks === "1" ? -0.33 : -0.66;
@@ -143,7 +150,19 @@ const SpecialTestAddQuestions = () => {
     try {
       setIsSubmitting(true);
       
-      // Validate form based on question type
+      const currentQuestionCount = testData?.questions?.length || 0;
+      const questionLimit = testData?.numQuestions || 0;
+      
+      if (currentQuestionCount >= questionLimit) {
+        toast({
+          title: "Limit Reached",
+          description: `You cannot add more than ${questionLimit} questions to this test.`,
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
       if (questionType === "MCQ" || questionType === "MSQ") {
         const filledOptions = (data.options || []).filter(opt => opt.trim() !== "");
         if (filledOptions.length < 2) {
@@ -189,7 +208,6 @@ const SpecialTestAddQuestions = () => {
       
       const negativeMark = calculateNegativeMarks();
       
-      // Create question object
       const questionObj: any = {
         text: data.questionText,
         type: questionType,
@@ -203,7 +221,6 @@ const SpecialTestAddQuestions = () => {
         questionObj.imageUrl = data.imageUrl;
       }
       
-      // Add type-specific fields
       if (questionType === "MCQ" || questionType === "MSQ") {
         const validOptions = (data.options || [])
           .filter(opt => opt.trim() !== "")
@@ -221,10 +238,24 @@ const SpecialTestAddQuestions = () => {
         questionObj.rangeEnd = parseFloat(data.rangeEnd || "0");
       }
       
-      // Step 1: Add question to the general questions collection
+      const questionText = data.questionText.trim();
+      const existingQuestions = testData?.questions || [];
+      const similarQuestion = existingQuestions.find(
+        (q: Question) => q.text && q.text.trim() === questionText
+      );
+      
+      if (similarQuestion) {
+        toast({
+          title: "Duplicate Question",
+          description: "This question already exists in the test.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
       const generalQuestionRef = await addDoc(collection(db, "questions"), questionObj);
       
-      // Step 2: Add question reference to the special test
       const testDocRef = doc(db, "specialTests", testId);
       await updateDoc(testDocRef, {
         questions: arrayUnion({
@@ -233,7 +264,6 @@ const SpecialTestAddQuestions = () => {
         })
       });
       
-      // Reset form
       form.reset({
         questionType: "MCQ",
         questionText: "",
@@ -254,14 +284,25 @@ const SpecialTestAddQuestions = () => {
         description: "Question added successfully",
       });
       
-      // Update local test data
-      setTestData({
+      const updatedQuestions = [
+        ...(testData.questions || []),
+        { id: generalQuestionRef.id, ...questionObj }
+      ];
+      
+      const updatedTestData = {
         ...testData,
-        questions: [
-          ...(testData.questions || []),
-          { id: generalQuestionRef.id, ...questionObj }
-        ]
-      });
+        questions: updatedQuestions
+      };
+      
+      setTestData(updatedTestData);
+      
+      if (updatedQuestions.length >= questionLimit) {
+        setQuestionLimitReached(true);
+        toast({
+          title: "Question Limit Reached",
+          description: `You've added the maximum number of questions (${questionLimit}) to this test.`,
+        });
+      }
       
     } catch (error) {
       console.error("Error adding question:", error);
@@ -296,353 +337,356 @@ const SpecialTestAddQuestions = () => {
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add New Question</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(() => setPreviewOpen(true))} className="space-y-6">
-                  {/* Question Type */}
-                  <FormField
-                    control={form.control}
-                    name="questionType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Question Type</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select question type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="MCQ">MCQ (Single Correct)</SelectItem>
-                            <SelectItem value="MSQ">MSQ (Multiple Correct)</SelectItem>
-                            <SelectItem value="NAT">NAT (Numerical Answer)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Select the type of question you want to add
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Subject */}
-                  <FormField
-                    control={form.control}
-                    name="subject"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Subject</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select subject" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {subjectList.map((subject) => (
-                              <SelectItem key={subject} value={subject}>
-                                {subject}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Question Text */}
-                  <FormField
-                    control={form.control}
-                    name="questionText"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Question Text</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Enter the question text here" 
-                            className="min-h-[100px]" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Image URL */}
-                  <FormField
-                    control={form.control}
-                    name="imageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Image URL (Optional)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Enter image URL" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          If the question has an image, paste its URL here
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Image Preview */}
-                  {imageUrl && (
-                    <Card className="overflow-hidden">
-                      <CardContent className="p-2">
-                        <div className="text-sm text-gray-500 mb-2">Image Preview:</div>
-                        <img 
-                          src={imageUrl} 
-                          alt="Question" 
-                          className="max-h-[200px] object-contain mx-auto"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://placehold.co/400x200/f5f5f5/cccccc?text=Invalid+Image+URL";
-                          }}
-                        />
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* MCQ Options */}
-                  {questionType === "MCQ" && (
-                    <>
-                      <div className="space-y-4">
-                        <div className="font-medium">Options</div>
-                        {[0, 1, 2, 3].map((index) => (
-                          <FormField
-                            key={index}
-                            control={form.control}
-                            name={`options.${index}`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-medium">
-                                    {String.fromCharCode(97 + index).toUpperCase()}
-                                  </div>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder={`Option ${String.fromCharCode(65 + index)}`} 
-                                      value={field.value}
-                                      onChange={(e) => handleOptionChange(index, e.target.value)}
-                                    />
-                                  </FormControl>
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Correct Option for MCQ */}
-                      <FormField
-                        control={form.control}
-                        name="correctOption"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Correct Option</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select correct option" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="a">Option A</SelectItem>
-                                <SelectItem value="b">Option B</SelectItem>
-                                <SelectItem value="c">Option C</SelectItem>
-                                <SelectItem value="d">Option D</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
-
-                  {/* MSQ Options */}
-                  {questionType === "MSQ" && (
-                    <>
-                      <div className="space-y-4">
-                        <div className="font-medium">Options</div>
-                        {[0, 1, 2, 3].map((index) => (
-                          <FormField
-                            key={index}
-                            control={form.control}
-                            name={`options.${index}`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-medium">
-                                    {String.fromCharCode(97 + index).toUpperCase()}
-                                  </div>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder={`Option ${String.fromCharCode(65 + index)}`} 
-                                      value={field.value}
-                                      onChange={(e) => handleOptionChange(index, e.target.value)}
-                                    />
-                                  </FormControl>
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        ))}
-                      </div>
-
-                      {/* Correct Options for MSQ */}
-                      <div>
-                        <FormLabel className="block mb-2">Correct Options</FormLabel>
-                        <div className="space-y-2">
-                          {["a", "b", "c", "d"].map((option, index) => (
-                            <FormField
-                              key={option}
-                              control={form.control}
-                              name="correctOptions"
-                              render={({ field }) => {
-                                return (
-                                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(option)}
-                                        onCheckedChange={() => toggleCorrectOption(option)}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                      Option {String.fromCharCode(65 + index)}
-                                    </FormLabel>
-                                  </FormItem>
-                                );
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* NAT Range */}
-                  {questionType === "NAT" && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="rangeStart"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Range Start</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="any" 
-                                placeholder="Min acceptable value"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Minimum acceptable value
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="rangeEnd"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Range End</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number"
-                                step="any"
-                                placeholder="Max acceptable value"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Maximum acceptable value
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  )}
-
-                  {/* Marks */}
-                  <div className="grid grid-cols-2 gap-4">
+          {questionLimitReached ? (
+            <Alert className="mb-6 border-yellow-400 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertTitle>Question Limit Reached</AlertTitle>
+              <AlertDescription>
+                You've added the maximum number of {testData?.numQuestions} questions to this test.
+                <div className="mt-2">
+                  <Button onClick={() => navigate("/admin/special-tests")}>
+                    Back to Tests
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Add New Question</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(() => setPreviewOpen(true))} className="space-y-6">
                     <FormField
                       control={form.control}
-                      name="marks"
+                      name="questionType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Marks</FormLabel>
+                          <FormLabel>Question Type</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select marks" />
+                                <SelectValue placeholder="Select question type" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="1">1 Mark</SelectItem>
-                              <SelectItem value="2">2 Marks</SelectItem>
+                              <SelectItem value="MCQ">MCQ (Single Correct)</SelectItem>
+                              <SelectItem value="MSQ">MSQ (Multiple Correct)</SelectItem>
+                              <SelectItem value="NAT">NAT (Numerical Answer)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Select the type of question you want to add
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="subject"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Subject</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select subject" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {subjectList.map((subject) => (
+                                <SelectItem key={subject} value={subject}>
+                                  {subject}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    
-                    <FormItem>
-                      <FormLabel>Negative Marking</FormLabel>
-                      <Input 
-                        value={calculateNegativeMarks()} 
-                        disabled 
-                        className="bg-gray-100"
-                      />
-                      <FormDescription>
-                        Auto-calculated based on question type and marks
-                      </FormDescription>
-                    </FormItem>
-                  </div>
 
-                  {/* Submit Button */}
-                  <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={() => navigate("/admin/special-tests")}>
-                      Done
-                    </Button>
-                    <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-                      <Eye className="mr-1 h-4 w-4" /> Preview Question
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                    <FormField
+                      control={form.control}
+                      name="questionText"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Question Text</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Enter the question text here" 
+                              className="min-h-[100px]" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="imageUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Image URL (Optional)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter image URL" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            If the question has an image, paste its URL here
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {imageUrl && (
+                      <Card className="overflow-hidden">
+                        <CardContent className="p-2">
+                          <div className="text-sm text-gray-500 mb-2">Image Preview:</div>
+                          <img 
+                            src={imageUrl} 
+                            alt="Question" 
+                            className="max-h-[200px] object-contain mx-auto"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://placehold.co/400x200/f5f5f5/cccccc?text=Invalid+Image+URL";
+                            }}
+                          />
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {questionType === "MCQ" && (
+                      <>
+                        <div className="space-y-4">
+                          <div className="font-medium">Options</div>
+                          {[0, 1, 2, 3].map((index) => (
+                            <FormField
+                              key={index}
+                              control={form.control}
+                              name={`options.${index}`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-medium">
+                                      {String.fromCharCode(97 + index).toUpperCase()}
+                                    </div>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder={`Option ${String.fromCharCode(65 + index)}`} 
+                                        value={field.value}
+                                        onChange={(e) => handleOptionChange(index, e.target.value)}
+                                      />
+                                    </FormControl>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="correctOption"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Correct Option</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select correct option" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="a">Option A</SelectItem>
+                                  <SelectItem value="b">Option B</SelectItem>
+                                  <SelectItem value="c">Option C</SelectItem>
+                                  <SelectItem value="d">Option D</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    )}
+
+                    {questionType === "MSQ" && (
+                      <>
+                        <div className="space-y-4">
+                          <div className="font-medium">Options</div>
+                          {[0, 1, 2, 3].map((index) => (
+                            <FormField
+                              key={index}
+                              control={form.control}
+                              name={`options.${index}`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-medium">
+                                      {String.fromCharCode(97 + index).toUpperCase()}
+                                    </div>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder={`Option ${String.fromCharCode(65 + index)}`} 
+                                        value={field.value}
+                                        onChange={(e) => handleOptionChange(index, e.target.value)}
+                                      />
+                                    </FormControl>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+
+                        <div>
+                          <FormLabel className="block mb-2">Correct Options</FormLabel>
+                          <div className="space-y-2">
+                            {["a", "b", "c", "d"].map((option, index) => (
+                              <FormField
+                                key={option}
+                                control={form.control}
+                                name="correctOptions"
+                                render={({ field }) => {
+                                  return (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(option)}
+                                          onCheckedChange={() => toggleCorrectOption(option)}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        Option {String.fromCharCode(65 + index)}
+                                      </FormLabel>
+                                    </FormItem>
+                                  );
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {questionType === "NAT" && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="rangeStart"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Range Start</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="any" 
+                                  placeholder="Min acceptable value"
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Minimum acceptable value
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="rangeEnd"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Range End</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number"
+                                  step="any"
+                                  placeholder="Max acceptable value"
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Maximum acceptable value
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="marks"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Marks</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select marks" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="1">1 Mark</SelectItem>
+                                <SelectItem value="2">2 Marks</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormItem>
+                        <FormLabel>Negative Marking</FormLabel>
+                        <Input 
+                          value={calculateNegativeMarks()} 
+                          disabled 
+                          className="bg-gray-100"
+                        />
+                        <FormDescription>
+                          Auto-calculated based on question type and marks
+                        </FormDescription>
+                      </FormItem>
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <Button type="button" variant="outline" onClick={() => navigate("/admin/special-tests")}>
+                        Done
+                      </Button>
+                      <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+                        <Eye className="mr-1 h-4 w-4" /> Preview Question
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          )}
         </div>
         
         <div>
@@ -665,8 +709,10 @@ const SpecialTestAddQuestions = () => {
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Questions</dt>
                   <dd>
-                    <span className="text-lg">{testData?.questions?.length || 0}</span>
-                    <span className="text-sm text-gray-500"> / {testData?.numQuestions}</span>
+                    <span className="text-lg font-medium">{testData?.questions?.length || 0}</span>
+                    <span className={`text-sm ml-1 ${questionLimitReached ? "text-red-500 font-medium" : "text-gray-500"}`}>
+                      / {testData?.numQuestions}
+                    </span>
                   </dd>
                 </div>
                 <div>
@@ -679,7 +725,6 @@ const SpecialTestAddQuestions = () => {
         </div>
       </div>
 
-      {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -690,13 +735,11 @@ const SpecialTestAddQuestions = () => {
           </DialogHeader>
 
           <div className="mt-4 space-y-6">
-            {/* Question Text */}
             <div className="space-y-2">
               <div className="text-sm text-gray-500">Question:</div>
               <p className="text-lg">{form.getValues("questionText")}</p>
             </div>
 
-            {/* Image */}
             {imageUrl && (
               <div>
                 <div className="text-sm text-gray-500 mb-2">Image:</div>
@@ -711,7 +754,6 @@ const SpecialTestAddQuestions = () => {
               </div>
             )}
 
-            {/* Options for MCQ and MSQ */}
             {(questionType === "MCQ" || questionType === "MSQ") && (
               <div className="space-y-3">
                 <div className="text-sm text-gray-500">Options:</div>
@@ -739,7 +781,6 @@ const SpecialTestAddQuestions = () => {
               </div>
             )}
 
-            {/* NAT Range */}
             {questionType === "NAT" && (
               <div className="space-y-2">
                 <div className="text-sm text-gray-500">Answer Range:</div>
@@ -749,7 +790,6 @@ const SpecialTestAddQuestions = () => {
               </div>
             )}
 
-            {/* Metadata */}
             <div className="grid grid-cols-2 gap-4 border-t pt-4">
               <div>
                 <div className="text-sm text-gray-500">Subject:</div>

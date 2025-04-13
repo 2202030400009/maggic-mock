@@ -13,7 +13,7 @@ interface TestParams {
   testType: string;
 }
 
-export const useTestLoader = (year: string | undefined, paperType: string | null) => {
+export const useTestLoader = (year: string | undefined, paperType: string | null, testId?: string | undefined) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -30,14 +30,13 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
         let testParams: TestParams | null = null;
         const params = new URLSearchParams(window.location.search);
         
-        // Extract testId from URL if it's a special test
-        const pathname = window.location.pathname;
-        const testId = pathname.includes('/test/special/') 
-          ? pathname.split('/test/special/')[1]
-          : null;
+        // Get testId from params if not passed directly
+        const specialTestId = testId || (window.location.pathname.includes('/test/special/') 
+          ? window.location.pathname.split('/test/special/')[1]
+          : null);
         
-        console.log("URL pathname:", pathname);
-        console.log("Extracted testId from URL:", testId);
+        console.log("URL pathname:", window.location.pathname);
+        console.log("Extracted testId from URL:", specialTestId);
         
         const storedParams = sessionStorage.getItem('testParams');
         
@@ -48,9 +47,9 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
         } 
         
         // Handle special test case
-        else if (testId) {
-          console.log("Loading special test with ID:", testId);
-          const specialTestParams = await generateSpecialTest(testId);
+        else if (specialTestId) {
+          console.log("Loading special test with ID:", specialTestId);
+          const specialTestParams = await generateSpecialTest(specialTestId);
           
           if (specialTestParams && specialTestParams.questions.length > 0) {
             console.log("Special test loaded successfully:", specialTestParams);
@@ -159,7 +158,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
     };
     
     loadTest();
-  }, [year, paperType, toast, navigate]);
+  }, [year, paperType, toast, navigate, testId]);
 
   return {
     questions,

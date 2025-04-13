@@ -1,24 +1,23 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
-import QuestionDisplay from "./QuestionDisplay";
-import QuestionControls from "./QuestionControls";
-import QuestionPalette from "./QuestionPalette";
-import QuestionHeader from "./QuestionHeader";
-import { Question } from "@/lib/types";
 import { usePaper } from "@/context/PaperContext";
 import { useFullscreenMonitor } from "@/hooks/useFullscreenMonitor";
 import { useTestLoader } from "@/hooks/useTestLoader";
 import { useTestTimer } from "@/hooks/useTestTimer";
 import { useTestControls } from "@/hooks/useTestControls";
 import { useTestResults } from "@/hooks/useTestResults";
+import TestHeader from "./TestHeader";
+import TestContent from "./TestContent";
+import TestPalette from "./TestPalette";
+import TestLoading from "./TestLoading";
+import TestError from "./TestError";
 
 const TestContainer: React.FC = () => {
   const { year, testId } = useParams();
   const navigate = useNavigate();
   const { paperType } = usePaper();
-  const [testTypeDisplay, setTestTypeDisplay] = useState("");
 
   console.log("TestContainer rendered with params:", { year, testId, paperType });
 
@@ -35,7 +34,7 @@ const TestContainer: React.FC = () => {
     remainingTime,
     setRemainingTime,
     error
-  } = useTestLoader(year, paperType);
+  } = useTestLoader(year, paperType, testId);
 
   // Initialize test controls
   const {
@@ -92,37 +91,22 @@ const TestContainer: React.FC = () => {
   
   // If the test is still loading, show a loading message
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2">Loading Test...</h2>
-          <p>Please wait while we prepare your test questions.</p>
-        </div>
-      </div>
-    );
+    return <TestLoading />;
   }
 
   // If there was an error loading the test, show an error message
   if (error || questions.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2 text-red-600">Test Error</h2>
-          <p>{error || "No questions available for this test."}</p>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-          >
-            Return to Dashboard
-          </button>
-        </div>
-      </div>
+      <TestError 
+        error={error || "No questions available for this test."} 
+        onBackToDashboard={() => navigate("/dashboard")}
+      />
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <QuestionHeader 
+      <TestHeader 
         paperType={paperType}
         year={year}
         currentQuestion={currentQuestion}
@@ -131,40 +115,28 @@ const TestContainer: React.FC = () => {
       />
 
       <div className="container mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
-        {/* Main content with question display and controls */}
-        <div className="lg:w-3/4 space-y-6">
-          <QuestionDisplay
-            currentQuestionData={questions[currentQuestion]}
-            currentQuestion={currentQuestion}
-            markedForReview={markedForReview}
-            setMarkedForReview={setMarkedForReview}
-            selectedOption={selectedOption}
-            selectedOptions={selectedOptions}
-            handleOptionSelect={handleOptionSelect}
-            updateAnswer={updateAnswer}
-            userAnswers={userAnswers}
-            updateQuestionStatus={updateQuestionStatus}
-          />
+        <TestContent 
+          currentQuestion={currentQuestion}
+          questions={questions}
+          markedForReview={markedForReview}
+          setMarkedForReview={setMarkedForReview}
+          selectedOption={selectedOption}
+          selectedOptions={selectedOptions}
+          userAnswers={userAnswers}
+          handleOptionSelect={handleOptionSelect}
+          updateAnswer={updateAnswer}
+          handleNextQuestion={handleNextQuestion}
+          handleSkipQuestion={handleSkipQuestion}
+          submitting={submitting}
+          updateQuestionStatus={updateQuestionStatus}
+        />
 
-          <QuestionControls
-            currentQuestion={currentQuestion}
-            totalQuestions={questions.length}
-            handleNextQuestion={handleNextQuestion}
-            handleSkipQuestion={handleSkipQuestion}
-            submitting={submitting}
-            questionType={questions[currentQuestion]?.type}
-          />
-        </div>
-
-        {/* Question palette */}
-        <div className="lg:w-1/4">
-          <QuestionPalette
-            questionsCount={questions.length}
-            questionStatus={questionStatus}
-            currentQuestion={currentQuestion}
-            onJumpToQuestion={handleJumpToQuestion}
-          />
-        </div>
+        <TestPalette 
+          questionsCount={questions.length}
+          questionStatus={questionStatus}
+          currentQuestion={currentQuestion}
+          onJumpToQuestion={handleJumpToQuestion}
+        />
       </div>
     </div>
   );

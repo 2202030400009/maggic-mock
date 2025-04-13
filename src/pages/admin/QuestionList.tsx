@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { collection, query, getDocs, collectionGroup } from "firebase/firestore";
+import { collection, query, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePaper } from "@/context/PaperContext";
 import { Question } from "@/lib/types";
@@ -15,22 +14,36 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Edit, Search, Trash2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useNavigate } from "react-router-dom";
 
 const QuestionList = () => {
   const { paperType } = usePaper();
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentTab, setCurrentTab] = useState<"all" | "pyq" | "general">("all");
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [pyqYears, setPyqYears] = useState<string[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
 
   // Fetch available PYQ years
   useEffect(() => {
     const fetchPyqYears = async () => {
       try {
-        // Expanded year range from 2015 to 2025
         const years = [
           "2025", "2024", "2023", "2022", "2021", "2020", 
           "2019", "2018", "2017", "2016", "2015"
@@ -130,6 +143,38 @@ const QuestionList = () => {
     }
   };
 
+  const handleDeleteQuestion = async () => {
+    if (!questionToDelete || !questionToDelete.id) return;
+
+    try {
+      // Delete from general questions collection
+      await deleteDoc(doc(db, "questions", questionToDelete.id));
+
+      // Update the local state
+      setQuestions(questions.filter(q => q.id !== questionToDelete.id));
+
+      toast({
+        title: "Question Deleted",
+        description: "Question has been successfully deleted.",
+      });
+    } catch (error) {
+      console.error("Error deleting question:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete question. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setQuestionToDelete(null);
+    }
+  };
+
+  const handleEditQuestion = (question: Question) => {
+    sessionStorage.setItem('questionToEdit', JSON.stringify(question));
+    navigate('/admin/edit-question');
+  };
+
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-2xl font-bold mb-6">Question Bank</h1>
@@ -209,6 +254,7 @@ const QuestionList = () => {
                 <TableHead className="w-24">Marks</TableHead>
                 <TableHead className="w-24">Negative</TableHead>
                 <TableHead className="w-28">Paper/Year</TableHead>
+                <TableHead className="w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -225,12 +271,54 @@ const QuestionList = () => {
                   <TableCell>{question.marks}</TableCell>
                   <TableCell>{question.negativeMark}</TableCell>
                   <TableCell>{question.paperType || "General"}</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleEditQuestion(question)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="text-red-500 hover:text-red-700"
+                        onClick={() => {
+                          setQuestionToDelete(question);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the question from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteQuestion}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
