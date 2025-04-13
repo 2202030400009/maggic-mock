@@ -25,6 +25,7 @@ const Instructions = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalMarks, setTotalMarks] = useState<number>(180);
+  const [totalQuestions, setTotalQuestions] = useState<number>(65);
 
   // Fetch special test data if testId is provided
   useEffect(() => {
@@ -33,6 +34,7 @@ const Instructions = () => {
       
       setLoading(true);
       try {
+        console.log("Fetching special test with ID:", testId);
         const testDocRef = doc(db, "specialTests", testId);
         const testSnapshot = await getDoc(testDocRef);
         
@@ -46,13 +48,23 @@ const Instructions = () => {
           
           if (!questionsSnapshot.empty) {
             let questionMarks = 0;
+            let questionCount = 0;
+            
             questionsSnapshot.forEach(doc => {
               const question = doc.data() as Question;
               questionMarks += question.marks || 0;
+              questionCount++;
             });
+            
+            console.log(`Total marks for special test: ${questionMarks} from ${questionCount} questions`);
             setTotalMarks(questionMarks);
+            setTotalQuestions(questionCount);
+          } else {
+            console.error("No questions found in special test");
+            setError("No questions found in this test");
           }
         } else {
+          console.error("Special test not found with ID:", testId);
           setError("Special test not found");
         }
       } catch (err) {
@@ -127,7 +139,7 @@ const Instructions = () => {
             <div className="space-y-1 text-center md:text-left">
               <p className="text-sm text-gray-500">Total Questions</p>
               <p className="font-medium text-lg">
-                {specialTest ? specialTest.numQuestions : "65"}
+                {specialTest ? totalQuestions : "65"}
               </p>
             </div>
             <div className="space-y-1 text-center md:text-left">

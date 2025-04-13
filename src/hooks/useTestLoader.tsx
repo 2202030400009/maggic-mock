@@ -29,15 +29,22 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
       try {
         let testParams: TestParams | null = null;
         const params = new URLSearchParams(window.location.search);
-        const testId = window.location.pathname.includes('/test/special/') 
-          ? window.location.pathname.split('/test/special/')[1]
+        
+        // Extract testId from URL if it's a special test
+        const pathname = window.location.pathname;
+        const testId = pathname.includes('/test/special/') 
+          ? pathname.split('/test/special/')[1]
           : null;
+        
+        console.log("URL pathname:", pathname);
+        console.log("Extracted testId from URL:", testId);
         
         const storedParams = sessionStorage.getItem('testParams');
         
         if (storedParams) {
           testParams = JSON.parse(storedParams);
           sessionStorage.removeItem('testParams');
+          console.log("Using stored test parameters:", testParams);
         } 
         
         // Handle special test case
@@ -45,9 +52,11 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
           console.log("Loading special test with ID:", testId);
           const specialTestParams = await generateSpecialTest(testId);
           
-          if (specialTestParams) {
+          if (specialTestParams && specialTestParams.questions.length > 0) {
+            console.log("Special test loaded successfully:", specialTestParams);
             testParams = specialTestParams;
           } else {
+            console.error("Failed to load special test or no questions found");
             setError("Failed to load special test. Please try again.");
             toast({
               title: "Error",
@@ -60,6 +69,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
         }
         // Handle PYQ test case
         else if (year) {
+          console.log("Loading PYQ test for year:", year, "paper type:", paperType);
           const collectionName = `pyqQuestions_${paperType?.replace(" ", "_")}_${year}`;
           
           const q = query(collection(db, collectionName));
@@ -110,7 +120,8 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
         }
         
         // Process test parameters
-        if (testParams && testParams.questions) {
+        if (testParams && testParams.questions && testParams.questions.length > 0) {
+          console.log(`Setting up test with ${testParams.questions.length} questions`);
           setQuestions(testParams.questions);
           setRemainingTime(testParams.duration * 60); // Convert minutes to seconds
           
@@ -123,10 +134,11 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
               .reduce((acc, _, index) => ({ ...acc, [index]: "notVisited" }), {})
           );
         } else {
+          console.error("Invalid test parameters:", testParams);
           setError("Invalid test parameters");
           toast({
             title: "Error",
-            description: "Invalid test parameters. Returning to dashboard.",
+            description: "Invalid test parameters or no questions found. Returning to dashboard.",
             variant: "destructive",
           });
           navigate("/dashboard");

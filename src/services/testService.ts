@@ -68,33 +68,41 @@ export const generateSpecialTest = async (
   testId: string
 ): Promise<TestParams | null> => {
   try {
+    console.log("Generating special test with ID:", testId);
     const testDocRef = doc(db, "specialTests", testId);
     const testSnapshot = await getDoc(testDocRef);
     
     if (!testSnapshot.exists()) {
-      console.error("Special test not found");
+      console.error("Special test not found with ID:", testId);
       return null;
     }
     
     const testData = testSnapshot.data();
+    console.log("Test data retrieved:", testData);
     
     // Fetch questions for this special test
     const questionsCollectionRef = collection(db, `specialTests/${testId}/questions`);
     const questionsSnapshot = await getDocs(questionsCollectionRef);
     
     if (questionsSnapshot.empty) {
-      console.error("No questions in this special test");
+      console.error("No questions found in special test with ID:", testId);
       return null;
     }
     
     const questions: Question[] = [];
     questionsSnapshot.forEach(doc => {
-      questions.push({ id: doc.id, ...doc.data() } as Question);
+      const questionData = doc.data();
+      questions.push({ 
+        id: doc.id, 
+        ...questionData 
+      } as Question);
     });
+    
+    console.log(`Successfully loaded ${questions.length} questions for special test`);
     
     const testParams: TestParams = {
       questions: questions,
-      duration: testData.duration,
+      duration: testData.duration || 60, // Default 60 minutes if not specified
       testType: "Special Test"
     };
     

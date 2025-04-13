@@ -13,7 +13,6 @@ import { useTestLoader } from "@/hooks/useTestLoader";
 import { useTestTimer } from "@/hooks/useTestTimer";
 import { useTestControls } from "@/hooks/useTestControls";
 import { useTestResults } from "@/hooks/useTestResults";
-import { generateSpecialTest } from "@/services/testService";
 
 const TestContainer: React.FC = () => {
   const { year, testId } = useParams();
@@ -21,10 +20,12 @@ const TestContainer: React.FC = () => {
   const { paperType } = usePaper();
   const [testTypeDisplay, setTestTypeDisplay] = useState("");
 
-  // Load questions from regular tests (PYQs)
+  console.log("TestContainer rendered with params:", { year, testId, paperType });
+
+  // Load questions using the useTestLoader hook
   const {
-    questions: regularQuestions,
-    loading: regularLoading,
+    questions,
+    loading,
     userAnswers,
     setUserAnswers,
     timeSpent,
@@ -33,54 +34,8 @@ const TestContainer: React.FC = () => {
     setQuestionStatus,
     remainingTime,
     setRemainingTime,
-    error: testLoadError
+    error
   } = useTestLoader(year, paperType);
-
-  // Special test handling
-  const [specialTestQuestions, setSpecialTestQuestions] = useState<Question[]>([]);
-  const [specialTestLoading, setSpecialTestLoading] = useState(false);
-  const [specialTestError, setSpecialTestError] = useState<string | null>(null);
-  const [specialTestDuration, setSpecialTestDuration] = useState<number | null>(null);
-
-  // Load special test data if testId is provided
-  useEffect(() => {
-    const loadSpecialTest = async () => {
-      if (!testId) return;
-
-      setSpecialTestLoading(true);
-      try {
-        const testParams = await generateSpecialTest(testId);
-        
-        if (!testParams || !testParams.questions || testParams.questions.length === 0) {
-          setSpecialTestError("No questions found for this test");
-          return;
-        }
-        
-        setSpecialTestQuestions(testParams.questions);
-        setSpecialTestDuration(testParams.duration);
-        setTestTypeDisplay("Special Test");
-      } catch (err) {
-        console.error("Error loading special test:", err);
-        setSpecialTestError("Failed to load special test");
-      } finally {
-        setSpecialTestLoading(false);
-      }
-    };
-    
-    if (testId) {
-      loadSpecialTest();
-    }
-  }, [testId]);
-
-  // Determine which questions to use
-  const finalQuestions = testId ? specialTestQuestions : regularQuestions;
-  const finalLoading = testId ? specialTestLoading : regularLoading;
-  const finalError = testId ? specialTestError : testLoadError;
-  
-  // Set up test duration (in minutes)
-  const testDuration = testId && specialTestDuration 
-    ? specialTestDuration * 60 // Convert minutes to seconds
-    : 180 * 60; // Default 3 hours in seconds
 
   // Initialize test controls
   const {
@@ -98,7 +53,7 @@ const TestContainer: React.FC = () => {
     handleSubmitTest,
     updateQuestionStatus
   } = useTestControls({ 
-    questions: finalQuestions, 
+    questions, 
     paperType, 
     year,
     userAnswers,
@@ -109,7 +64,7 @@ const TestContainer: React.FC = () => {
 
   // Initialize test timer
   useTestTimer({
-    loading: finalLoading,
+    loading,
     remainingTime,
     setRemainingTime,
     currentQuestion,
@@ -122,7 +77,7 @@ const TestContainer: React.FC = () => {
 
   // Submit test when time runs out
   useEffect(() => {
-    if (remainingTime <= 0 && finalQuestions.length > 0) {
+    if (remainingTime <= 0 && questions.length > 0) {
       toast({
         title: "Time's up!",
         description: "Your test has been automatically submitted.",
@@ -130,13 +85,13 @@ const TestContainer: React.FC = () => {
       });
       handleSubmitTest();
     }
-  }, [remainingTime, finalQuestions.length, handleSubmitTest]);
+  }, [remainingTime, questions.length, handleSubmitTest]);
 
   // Calculate test results
   const { calculateResults } = useTestResults();
   
   // If the test is still loading, show a loading message
-  if (finalLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
@@ -148,12 +103,12 @@ const TestContainer: React.FC = () => {
   }
 
   // If there was an error loading the test, show an error message
-  if (finalError || finalQuestions.length === 0) {
+  if (error || questions.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-2 text-red-600">Test Error</h2>
-          <p>{finalError || "No questions available for this test."}</p>
+          <p>{error || "No questions available for this test."}</p>
           <button
             onClick={() => navigate("/dashboard")}
             className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
@@ -171,7 +126,7 @@ const TestContainer: React.FC = () => {
         paperType={paperType}
         year={year}
         currentQuestion={currentQuestion}
-        totalQuestions={finalQuestions.length}
+        totalQuestions={questions.length}
         remainingTime={remainingTime}
       />
 
@@ -179,7 +134,7 @@ const TestContainer: React.FC = () => {
         {/* Main content with question display and controls */}
         <div className="lg:w-3/4 space-y-6">
           <QuestionDisplay
-            currentQuestionData={finalQuestions[currentQuestion]}
+            currentQuestionData={questions[currentQuestion]}
             currentQuestion={currentQuestion}
             markedForReview={markedForReview}
             setMarkedForReview={setMarkedForReview}
@@ -193,18 +148,18 @@ const TestContainer: React.FC = () => {
 
           <QuestionControls
             currentQuestion={currentQuestion}
-            totalQuestions={finalQuestions.length}
+            totalQuestions={questions.length}
             handleNextQuestion={handleNextQuestion}
             handleSkipQuestion={handleSkipQuestion}
             submitting={submitting}
-            questionType={finalQuestions[currentQuestion]?.type}
+            questionType={questions[currentQuestion]?.type}
           />
         </div>
 
         {/* Question palette */}
         <div className="lg:w-1/4">
           <QuestionPalette
-            questionsCount={finalQuestions.length}
+            questionsCount={questions.length}
             questionStatus={questionStatus}
             currentQuestion={currentQuestion}
             onJumpToQuestion={handleJumpToQuestion}
