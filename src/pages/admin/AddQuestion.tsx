@@ -62,6 +62,42 @@ const formSchema = z.object({
   subject: z.string(),
 });
 
+// Custom validation schema for required fields based on question type
+const getValidationSchema = (questionType: QuestionType) => {
+  const baseSchema = z.object({
+    questionType: z.string(),
+    questionText: z.string().min(1, "Question text is required"),
+    imageUrl: z.string().optional(),
+    marks: z.string(),
+    subject: z.string(),
+  });
+
+  if (questionType === "MCQ") {
+    return baseSchema.extend({
+      options: z.array(z.string()).min(4, "All four options are required for MCQ").refine(
+        (options) => options.every(opt => opt.trim().length > 0),
+        "All four options must be filled"
+      ),
+      correctOption: z.string().min(1, "Please select a correct option"),
+    });
+  } else if (questionType === "MSQ") {
+    return baseSchema.extend({
+      options: z.array(z.string()).min(4, "All four options are required for MSQ").refine(
+        (options) => options.every(opt => opt.trim().length > 0),
+        "All four options must be filled"
+      ),
+      correctOptions: z.array(z.string()).min(1, "Please select at least one correct option"),
+    });
+  } else if (questionType === "NAT") {
+    return baseSchema.extend({
+      rangeStart: z.string().min(1, "Range start is required"),
+      rangeEnd: z.string().min(1, "Range end is required"),
+    });
+  }
+
+  return baseSchema;
+};
+
 const AddQuestion = () => {
   const { paperType } = usePaper();
   const navigate = useNavigate();
@@ -72,6 +108,7 @@ const AddQuestion = () => {
   
   const [previewOpen, setPreviewOpen] = useState(false);
   const [questionCount, setQuestionCount] = useState(0);
+  const [isSubmitDisabled, setIsSubmitDisabled] = useState(false);
   
   // Get subject list based on paper type
   const subjectList = paperType === "GATE CS" ? gateCSSubjects : gateDASubjects;
@@ -131,10 +168,37 @@ const AddQuestion = () => {
     }
   };
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+  const handlePreviewClick = () => {
+    // Validate based on question type before opening the preview
+    const schema = getValidationSchema(questionType);
+    
     try {
-      const negativeMark = calculateNegativeMarks();
-      const collectionName = getCollectionName();
+      schema.parse(form.getValues());
+      setPreviewOpen(true);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        error.errors.forEach(err => {
+          const path = err.path.join(".");
+          form.setError(path as any, { 
+            type: "manual", 
+            message: err.message 
+          });
+        });
+        
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields correctly",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    if (isSubmitDisabled) return;
+    
+    try {
+      setIsSubmitDisabled(true);
       
       // Check if we're adding a PYQ and have reached 65 questions
       if (isPYQ && questionCount >= 65) {
@@ -143,8 +207,31 @@ const AddQuestion = () => {
           description: `This PYQ already has 65 questions, which is the maximum allowed.`,
           variant: "destructive",
         });
+        setIsSubmitDisabled(false);
         return;
       }
+      
+      // Custom validation based on question type
+      const schema = getValidationSchema(questionType);
+      
+      try {
+        schema.parse(data);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          error.errors.forEach(err => {
+            toast({
+              title: "Validation Error",
+              description: err.message,
+              variant: "destructive",
+            });
+          });
+        }
+        setIsSubmitDisabled(false);
+        return;
+      }
+      
+      const negativeMark = calculateNegativeMarks();
+      const collectionName = getCollectionName();
       
       const questionData = {
         text: data.questionText,
@@ -216,6 +303,11 @@ const AddQuestion = () => {
         description: "Failed to add question. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      // Re-enable submit button after a short delay
+      setTimeout(() => {
+        setIsSubmitDisabled(false);
+      }, 1000);
     }
   };
 
@@ -248,7 +340,7 @@ const AddQuestion = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(() => setPreviewOpen(true))} className="space-y-6">
+            <form onSubmit={form.handleSubmit(handlePreviewClick)} className="space-y-6">
               {/* Question Type */}
               <FormField
                 control={form.control}
@@ -257,7 +349,23 @@ const AddQuestion = () => {
                   <FormItem>
                     <FormLabel>Question Type</FormLabel>
                     <Select 
-                      onValueChange={field.onChange} 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Reset specific fields based on the new question type
+                        if (value === "MCQ") {
+                          form.setValue("correctOptions", []);
+                          form.setValue("rangeStart", "");
+                          form.setValue("rangeEnd", "");
+                        } else if (value === "MSQ") {
+                          form.setValue("correctOption", "");
+                          form.setValue("rangeStart", "");
+                          form.setValue("rangeEnd", "");
+                        } else if (value === "NAT") {
+                          form.setValue("options", []);
+                          form.setValue("correctOption", "");
+                          form.setValue("correctOptions", []);
+                        }
+                      }}
                       defaultValue={field.value}
                     >
                       <FormControl>
@@ -314,7 +422,7 @@ const AddQuestion = () => {
                 name="questionText"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Question Text</FormLabel>
+                    <FormLabel>Question Text *</FormLabel>
                     <FormControl>
                       <Textarea 
                         placeholder="Enter the question text here" 
@@ -369,7 +477,8 @@ const AddQuestion = () => {
               {questionType === "MCQ" && (
                 <>
                   <div className="space-y-4">
-                    <div className="font-medium">Options</div>
+                    <div className="font-medium">Options *</div>
+                    <p className="text-sm text-gray-500">All four options are required for MCQ questions</p>
                     {[0, 1, 2, 3].map((index) => (
                       <FormField
                         key={index}
@@ -383,7 +492,7 @@ const AddQuestion = () => {
                               </div>
                               <FormControl>
                                 <Input 
-                                  placeholder={`Option ${String.fromCharCode(65 + index)}`} 
+                                  placeholder={`Option ${String.fromCharCode(65 + index)}*`} 
                                   {...field} 
                                 />
                               </FormControl>
@@ -401,7 +510,7 @@ const AddQuestion = () => {
                     name="correctOption"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Correct Option</FormLabel>
+                        <FormLabel>Correct Option *</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
@@ -429,7 +538,8 @@ const AddQuestion = () => {
               {questionType === "MSQ" && (
                 <>
                   <div className="space-y-4">
-                    <div className="font-medium">Options</div>
+                    <div className="font-medium">Options *</div>
+                    <p className="text-sm text-gray-500">All four options are required for MSQ questions</p>
                     {[0, 1, 2, 3].map((index) => (
                       <FormField
                         key={index}
@@ -443,7 +553,7 @@ const AddQuestion = () => {
                               </div>
                               <FormControl>
                                 <Input 
-                                  placeholder={`Option ${String.fromCharCode(65 + index)}`} 
+                                  placeholder={`Option ${String.fromCharCode(65 + index)}*`} 
                                   {...field} 
                                 />
                               </FormControl>
@@ -457,7 +567,8 @@ const AddQuestion = () => {
 
                   {/* Correct Options */}
                   <div>
-                    <FormLabel className="block mb-2">Correct Options</FormLabel>
+                    <FormLabel className="block mb-2">Correct Options *</FormLabel>
+                    <p className="text-sm text-gray-500 mb-2">Select at least one correct option</p>
                     <div className="space-y-2">
                       {["a", "b", "c", "d"].map((option, index) => (
                         <FormField
@@ -490,6 +601,7 @@ const AddQuestion = () => {
                         />
                       ))}
                     </div>
+                    <FormMessage />
                   </div>
                 </>
               )}
@@ -502,7 +614,7 @@ const AddQuestion = () => {
                     name="rangeStart"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Range Start</FormLabel>
+                        <FormLabel>Range Start *</FormLabel>
                         <FormControl>
                           <Input type="number" step="any" {...field} />
                         </FormControl>
@@ -518,7 +630,7 @@ const AddQuestion = () => {
                     name="rangeEnd"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Range End</FormLabel>
+                        <FormLabel>Range End *</FormLabel>
                         <FormControl>
                           <Input type="number" step="any" {...field} />
                         </FormControl>
@@ -577,7 +689,11 @@ const AddQuestion = () => {
                 <Button type="button" variant="outline" onClick={() => navigate("/admin")}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+                <Button 
+                  type="submit" 
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  disabled={isSubmitDisabled}
+                >
                   <Eye className="mr-1 h-4 w-4" /> Preview Question
                 </Button>
               </div>
@@ -670,13 +786,18 @@ const AddQuestion = () => {
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setPreviewOpen(false)}
+              disabled={isSubmitDisabled}
+            >
               Edit
             </Button>
             <Button 
               type="button"
               onClick={form.handleSubmit(onSubmit)}
               className="bg-indigo-600 hover:bg-indigo-700"
+              disabled={isSubmitDisabled}
             >
               <Save className="mr-1 h-4 w-4" /> Add Question
             </Button>

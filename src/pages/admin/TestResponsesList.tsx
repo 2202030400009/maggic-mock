@@ -90,10 +90,29 @@ const TestResponsesList = () => {
   );
 
   const viewResponseDetails = (response: TestResponse) => {
-    // For now, just storing the selected response ID in session storage
-    // This could be expanded to show a detailed view page
-    sessionStorage.setItem('adminViewResponseId', response.id);
-    navigate(`/admin/response/${response.id}`);
+    // Create a new page for viewing admin responses
+    try {
+      // Store necessary data in session storage
+      sessionStorage.setItem('adminViewResponseId', response.id);
+      sessionStorage.setItem('testResponseData', JSON.stringify({
+        id: response.id,
+        userEmail: response.userEmail,
+        testType: response.testType,
+        paperType: response.paperType,
+        year: response.year,
+        totalMarks: response.totalMarks,
+        scoredMarks: response.scoredMarks,
+        scaledMarks: response.scaledMarks,
+        lossMarks: response.lossMarks,
+        timestamp: response.timestamp,
+        totalTime: response.totalTime
+      }));
+      
+      // Navigate to the response view page
+      navigate(`/admin/test-response/${response.id}`);
+    } catch (error) {
+      console.error("Error preparing response view:", error);
+    }
   };
 
   return (

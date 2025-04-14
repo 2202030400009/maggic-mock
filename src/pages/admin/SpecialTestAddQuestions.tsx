@@ -1,22 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc, updateDoc, arrayUnion, addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { z } from "zod";
 import { usePaper } from "@/context/PaperContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
-import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Alert,
   AlertDescription,
@@ -26,6 +15,8 @@ import PaperSwitcher from "@/components/PaperSwitcher";
 import QuestionForm from "@/components/admin/specialTests/QuestionForm";
 import QuestionPreview from "@/components/admin/specialTests/QuestionPreview";
 import TestInfoCard from "@/components/admin/specialTests/TestInfoCard";
+import QuestionFormContainer from "@/components/admin/questions/QuestionFormContainer";
+import QuestionPreviewDialog from "@/components/admin/questions/QuestionPreviewDialog";
 
 const formSchema = z.object({
   questionType: z.string(),
@@ -43,12 +34,22 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface SpecialTest {
+  id: string;
+  name: string;
+  description?: string;
+  duration: number;
+  numQuestions: number;
+  questions?: any[];
+  [key: string]: any;
+}
+
 const SpecialTestAddQuestions = () => {
   const { testId } = useParams();
   const { paperType } = usePaper();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [testData, setTestData] = useState<any>(null);
+  const [testData, setTestData] = useState<SpecialTest | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [questionLimitReached, setQuestionLimitReached] = useState(false);
@@ -64,7 +65,11 @@ const SpecialTestAddQuestions = () => {
         const testSnapshot = await getDoc(testDocRef);
         
         if (testSnapshot.exists()) {
-          const data = { id: testSnapshot.id, ...testSnapshot.data() };
+          const data = { 
+            id: testSnapshot.id, 
+            ...testSnapshot.data() 
+          } as SpecialTest;
+          
           setTestData(data);
           
           const questionCount = data.questions?.length || 0;
@@ -298,87 +303,61 @@ const SpecialTestAddQuestions = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <h1 className="text-3xl font-bold">Add Questions to {testData?.name}</h1>
-          <Badge variant="outline" className="text-lg">
-            {paperType}
-          </Badge>
         </div>
         <div className="flex items-center space-x-2">
           <PaperSwitcher />
-          <Button onClick={() => navigate("/admin/special-tests")}>Back to Tests</Button>
+          <button onClick={() => navigate("/admin/special-tests")} className="px-4 py-2 bg-gray-200 rounded-md">Back to Tests</button>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          {questionLimitReached ? (
-            <Alert className="mb-6 border-yellow-400 bg-yellow-50">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertTitle>Question Limit Reached</AlertTitle>
-              <AlertDescription>
-                You've added the maximum number of {testData?.numQuestions} questions to this test.
-                <div className="mt-2">
-                  <Button onClick={() => navigate("/admin/special-tests")}>
-                    Back to Tests
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Add New Question</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <QuestionForm 
-                  paperType={paperType || "GATE CS"}
-                  onPreview={handlePreview}
-                  onCancel={() => navigate("/admin/special-tests")}
-                />
-              </CardContent>
-            </Card>
-          )}
+      {loading ? (
+        <div className="text-center py-10">Loading test data...</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            {questionLimitReached ? (
+              <Alert className="mb-6 border-yellow-400 bg-yellow-50">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertTitle>Question Limit Reached</AlertTitle>
+                <AlertDescription>
+                  You've added the maximum number of {testData?.numQuestions} questions to this test.
+                  <div className="mt-2">
+                    <button onClick={() => navigate("/admin/special-tests")} className="px-4 py-2 bg-indigo-600 text-white rounded-md">
+                      Back to Tests
+                    </button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <QuestionFormContainer paperType={paperType || "GATE CS"} onPreview={handlePreview} onCancel={() => navigate("/admin/special-tests")} />
+            )}
+          </div>
+          
+          <div>
+            {testData && (
+              <TestInfoCard 
+                name={testData.name || ""}
+                description={testData.description}
+                questionCount={testData.questions?.length || 0}
+                questionLimit={testData.numQuestions || 0}
+                duration={testData.duration || 0}
+                isLimitReached={questionLimitReached}
+              />
+            )}
+          </div>
         </div>
-        
-        <div>
-          <TestInfoCard 
-            name={testData?.name || ""}
-            description={testData?.description}
-            questionCount={testData?.questions?.length || 0}
-            questionLimit={testData?.numQuestions || 0}
-            duration={testData?.duration || 0}
-            isLimitReached={questionLimitReached}
-          />
-        </div>
-      </div>
+      )}
 
       {formData && (
-        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>Question Preview</DialogTitle>
-              <DialogDescription>
-                Review the question before adding it to the test
-              </DialogDescription>
-            </DialogHeader>
-            
-            <QuestionPreview 
-              questionType={formData.questionType}
-              questionText={formData.questionText}
-              imageUrl={formData.imageUrl || ""}
-              options={formData.options}
-              correctOption={formData.correctOption}
-              correctOptions={formData.correctOptions}
-              rangeStart={formData.rangeStart}
-              rangeEnd={formData.rangeEnd}
-              subject={formData.subject}
-              marks={formData.marks}
-              negativeMark={calculateNegativeMarks()}
-              onSave={handleSubmit}
-              onEdit={() => setPreviewOpen(false)}
-              isSubmitting={isSubmitting || isSubmitDisabled}
-            />
-          </DialogContent>
-        </Dialog>
+        <QuestionPreviewDialog
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          questionData={formData}
+          negativeMark={calculateNegativeMarks()}
+          onSave={handleSubmit}
+          onEdit={() => setPreviewOpen(false)}
+          isSubmitting={isSubmitting || isSubmitDisabled}
+        />
       )}
     </div>
   );
