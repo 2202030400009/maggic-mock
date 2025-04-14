@@ -49,18 +49,72 @@ function useQuery() {
   return new URLSearchParams(useLocation().search);
 }
 
-const formSchema = z.object({
-  questionType: z.string(),
-  questionText: z.string().min(1, "Question text is required"),
-  imageUrl: z.string().optional(),
-  options: z.array(z.string()).optional(),
-  correctOption: z.string().optional(),
-  correctOptions: z.array(z.string()).optional(),
-  rangeStart: z.string().optional(),
-  rangeEnd: z.string().optional(),
-  marks: z.string(),
-  subject: z.string(),
-});
+const formSchema = z
+  .object({
+    questionType: z.enum(["MCQ", "MSQ", "NAT"]),
+    questionText: z.string().min(1, "Question text is required"),
+    imageUrl: z.string().optional(),
+    options: z.array(z.string()).optional(),
+    correctOption: z.string().optional(),
+    correctOptions: z.array(z.string()).optional(),
+    rangeStart: z.string().optional(),
+    rangeEnd: z.string().optional(),
+    marks: z.string(),
+    subject: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (["MCQ", "MSQ"].includes(data.questionType)) {
+      // Validate all 4 options are filled
+      if (!data.options || data.options.length !== 4 || data.options.some(opt => !opt.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "All four options must be filled",
+          path: ["options"],
+        });
+      }
+    }
+
+    if (data.questionType === "MCQ") {
+      // Validate correctOption is selected
+      if (!data.correctOption || !["a", "b", "c", "d"].includes(data.correctOption)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "You must select one correct option",
+          path: ["correctOption"],
+        });
+      }
+    }
+
+    if (data.questionType === "MSQ") {
+      // Validate at least one correct option
+      if (!data.correctOptions || data.correctOptions.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "At least one correct option must be selected",
+          path: ["correctOptions"],
+        });
+      }
+    }
+
+    if (data.questionType === "NAT") {
+      // Validate both rangeStart and rangeEnd are provided and valid numbers
+      if (!data.rangeStart || isNaN(Number(data.rangeStart))) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please enter a valid lower range",
+          path: ["rangeStart"],
+        });
+      }
+      if (!data.rangeEnd || isNaN(Number(data.rangeEnd))) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Please enter a valid upper range",
+          path: ["rangeEnd"],
+        });
+      }
+    }
+  });
+
 
 const AddQuestion = () => {
   const { paperType } = usePaper();
