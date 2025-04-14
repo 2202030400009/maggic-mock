@@ -1,272 +1,226 @@
-
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { db } from "@/lib/firebase";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { TestType, TestParams } from "@/lib/types";
-import { usePaper } from "@/context/PaperContext";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
-import TestLoading from "@/components/test/TestLoading";
-
-interface SpecialTest {
-  id: string;
-  name: string;
-  description?: string;
-  duration: number;
-  numQuestions: number;
-  questions?: any[];
-  [key: string]: any;
-}
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { usePaper } from "@/context/PaperContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Question } from "@/lib/types";
 
 const Instructions = () => {
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { year, testId } = useParams();
   const { paperType } = usePaper();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [testParams, setTestParams] = useState<TestParams | null>(null);
-  const [specialTest, setSpecialTest] = useState<SpecialTest | null>(null);
+  const navigate = useNavigate();
+  const [specialTest, setSpecialTest] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [totalMarks, setTotalMarks] = useState<number>(180); // Default for PYQ tests
+  const [totalQuestions, setTotalQuestions] = useState<number>(65); // Default for PYQ tests
 
-  // Get test parameters from location state
+  // Fetch special test data if testId is provided
   useEffect(() => {
-    const params = location.state?.testParams;
-    if (params) {
-      setTestParams(params);
+    const fetchSpecialTest = async () => {
+      if (!testId) return;
       
-      // If it's a special test, fetch the test details
-      if (params.testType === "SPECIAL" && params.specialTestId) {
-        const fetchSpecialTest = async () => {
-          try {
-            const testRef = doc(db, "specialTests", params.specialTestId);
-            const testDoc = await getDoc(testRef);
-            
-            if (testDoc.exists()) {
-              const testData = { id: testDoc.id, ...testDoc.data() } as SpecialTest;
-              
-              // Validate that the test has questions
-              if (!testData.questions || testData.questions.length === 0) {
-                toast({
-                  title: "Error",
-                  description: "No questions found in this test.",
-                  variant: "destructive",
-                });
-                navigate("/dashboard");
-                return;
-              }
-              
-              // Check if the user has already taken this test
-              if (currentUser) {
-                const responseQuery = query(
-                  collection(db, "testResponses"),
-                  where("userId", "==", currentUser.uid),
-                  where("specialTestId", "==", params.specialTestId)
-                );
-                
-                const responseSnapshot = await getDocs(responseQuery);
-                if (!responseSnapshot.empty) {
-                  toast({
-                    title: "Test Already Taken",
-                    description: "You have already attempted this test.",
-                    variant: "destructive",
-                  });
-                  navigate("/dashboard");
-                  return;
-                }
-              }
-              
-              setSpecialTest(testData);
-            } else {
-              toast({
-                title: "Test Not Found",
-                description: "The selected test could not be found.",
-                variant: "destructive",
-              });
-              navigate("/dashboard");
-            }
-          } catch (error) {
-            console.error("Error fetching special test:", error);
-            toast({
-              title: "Error",
-              description: "Failed to load test. Please try again.",
-              variant: "destructive",
-            });
-            navigate("/dashboard");
-          } finally {
-            setLoading(false);
-          }
-        };
+      setLoading(true);
+      try {
+        console.log("Fetching special test with ID:", testId);
+        const testDocRef = doc(db, "specialTests", testId);
+        const testSnapshot = await getDoc(testDocRef);
         
-        fetchSpecialTest();
-      } else {
+        if (testSnapshot.exists()) {
+          const testData = { id: testSnapshot.id, ...testSnapshot.data() };
+          setSpecialTest(testData);
+          
+          // Calculate total marks and questions from embedded questions array
+          if (testData.questions && Array.isArray(testData.questions) && testData.questions.length > 0) {
+            let questionMarks = 0;
+            testData.questions.forEach((question: Question) => {
+              questionMarks += question.marks || 0;
+            });
+            
+            console.log(`Total marks for special test: ${questionMarks} from ${testData.questions.length} questions`);
+            setTotalMarks(questionMarks);
+            setTotalQuestions(testData.questions.length);
+          } else {
+            console.error("No questions found in special test");
+            setError("No questions found in this test");
+            setTotalMarks(0);
+            setTotalQuestions(0);
+          }
+        } else {
+          console.error("Special test not found with ID:", testId);
+          setError("Special test not found");
+        }
+      } catch (err) {
+        console.error("Error fetching special test:", err);
+        setError("Failed to load test data");
+      } finally {
         setLoading(false);
       }
-    } else {
-      navigate("/dashboard");
+    };
+    
+    if (testId) {
+      fetchSpecialTest();
     }
-  }, [location.state, navigate, currentUser, toast]);
+  }, [testId]);
 
-  const getTestTitle = () => {
-    if (!testParams) return "Test";
-    
-    if (testParams.testType === "SPECIAL" && specialTest) {
-      return specialTest.name;
-    }
-    
-    if (testParams.testType === "PYQ") {
-      return `${paperType} ${testParams.year} PYQ`;
-    }
-    
-    if (testParams.testType === "FULL_SYLLABUS") {
-      return "Full Syllabus Test";
-    }
-    
-    if (testParams.testType === "SUBJECT_WISE") {
-      return `${testParams.subject} Test`;
-    }
-    
-    if (testParams.testType === "MULTI_SUBJECT") {
-      return "Multi Subject Test";
-    }
-    
-    return "Practice Test";
-  };
-
-  const getTestDescription = () => {
-    if (!testParams) return "";
-    
-    if (testParams.testType === "SPECIAL" && specialTest) {
-      return specialTest.description || "Special test";
-    }
-    
-    if (testParams.testType === "PYQ") {
-      return `Previous Year Question Paper - ${testParams.year}`;
-    }
-    
-    if (testParams.testType === "SUBJECT_WISE") {
-      return `Practice questions from ${testParams.subject}`;
-    }
-    
-    if (testParams.testType === "MULTI_SUBJECT") {
-      const subjects = testParams.subjects?.join(", ") || "Multiple subjects";
-      return `Practice questions from ${subjects}`;
-    }
-    
-    return "Practice test with questions from various subjects";
-  };
-
-  const getTestDuration = () => {
-    if (!testParams) return 0;
-    
-    if (testParams.testType === "SPECIAL" && specialTest) {
-      return specialTest.duration;
-    }
-    
-    if (testParams.testType === "PYQ") {
-      return 180; // 3 hours for PYQ
-    }
-    
-    // For other test types
-    return testParams.duration || 60;
-  };
-
-  const getQuestionCount = () => {
-    if (!testParams) return 0;
-    
-    if (testParams.testType === "SPECIAL" && specialTest && specialTest.questions) {
-      return specialTest.questions.length;
-    }
-    
-    if (testParams.testType === "PYQ") {
-      return 65; // Standard GATE paper has 65 questions
-    }
-    
-    // For other test types
-    return testParams.numQuestions || 0;
-  };
-
-  const getMarksText = () => {
-    if (!testParams) return "";
-    
-    if (testParams.testType === "SPECIAL" && specialTest && specialTest.questions) {
-      // Calculate total marks for special test
-      const totalMarks = specialTest.questions.reduce((sum, q) => sum + (q.marks || 1), 0);
-      return `${totalMarks} marks`;
-    }
-    
-    if (testParams.testType === "PYQ") {
-      return "100 marks"; // Standard GATE paper is 100 marks
-    }
-    
-    return "Varies based on question difficulty";
-  };
-
-  const startTest = () => {
-    if (testParams) {
-      navigate("/test", { state: { testParams } });
+  const handleStartTest = () => {
+    if (testId) {
+      navigate(`/test/special/${testId}`);
+    } else if (year) {
+      navigate(`/test/${year}`);
     }
   };
 
   if (loading) {
-    return <TestLoading />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <CardTitle className="text-center">Loading Test Information...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center">
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <CardTitle className="text-center text-red-500">Error</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center">{error}</p>
+          </CardContent>
+          <CardFooter className="flex justify-center">
+            <Button onClick={() => navigate("/dashboard")}>
+              Return to Dashboard
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 py-10">
-      <div className="container mx-auto px-4">
-        <Card className="max-w-3xl mx-auto shadow-md">
-          <CardContent className="p-8">
-            <div className="space-y-6">
-              <div className="text-center">
-                <h1 className="text-3xl font-bold text-gray-800">{getTestTitle()}</h1>
-                <p className="text-gray-600 mt-2">{getTestDescription()}</p>
-              </div>
-              
-              <Separator />
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div>
-                  <h3 className="font-medium text-gray-500">Duration</h3>
-                  <p className="text-xl font-semibold">{getTestDuration()} minutes</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-500">Questions</h3>
-                  <p className="text-xl font-semibold">{getQuestionCount()}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-gray-500">Total Marks</h3>
-                  <p className="text-xl font-semibold">{getMarksText()}</p>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Instructions</h2>
-                <ul className="space-y-2 list-disc pl-5">
-                  <li>Read all questions carefully before answering.</li>
-                  <li>There may be negative marking for incorrect answers.</li>
-                  <li>Once submitted, you cannot change your answers.</li>
-                  <li>Do not reload or close the browser during the test.</li>
-                  <li>The timer will start once you begin the test.</li>
-                  <li>Click on the question number to navigate between questions.</li>
-                  <li>Use the "Mark for Review" feature for questions you want to revisit.</li>
-                </ul>
-              </div>
-              
-              <div className="flex justify-center pt-4">
-                <Button onClick={startTest} size="lg" className="px-8 py-6 text-lg">
-                  Begin Test
-                </Button>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-3xl">
+        <CardHeader>
+          <CardTitle className="text-center text-2xl">
+            {specialTest ? specialTest.name : `${paperType} ${year} Test Instructions`}
+          </CardTitle>
+          {specialTest?.description && (
+            <CardDescription className="text-center">
+              {specialTest.description}
+            </CardDescription>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Test Details */}
+          <div className="bg-indigo-50 p-4 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Total Questions</p>
+              <p className="font-medium text-lg">
+                {specialTest ? totalQuestions : "65"}
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Total Time</p>
+              <p className="font-medium text-lg">
+                {specialTest ? `${specialTest.duration} minutes` : "3 hours"}
+              </p>
+            </div>
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Maximum Marks</p>
+              <p className="font-medium text-lg">{totalMarks}</p>
+            </div>
+            <div className="space-y-1 text-center md:text-left">
+              <p className="text-sm text-gray-500">Test Mode</p>
+              <p className="font-medium text-lg">Online</p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* General Instructions */}
+          <div>
+            <h3 className="font-semibold text-lg mb-3">General Instructions:</h3>
+            <ul className="space-y-2">
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>The test consists of multiple-choice questions (MCQs), multiple-select questions (MSQs), and numerical answer type (NAT) questions.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>Each question has marks assigned to it, visible at the top right of the question.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>Some questions may have negative marking. This will be indicated in the question.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>You can move freely between questions and review your answers before submitting.</span>
+              </li>
+              <li className="flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 text-green-500 shrink-0 mt-0.5" />
+                <span>Questions can be marked for review to revisit them later.</span>
+              </li>
+            </ul>
+          </div>
+
+          <Separator />
+
+          {/* Important Notes */}
+          <div>
+            <h3 className="font-semibold text-lg mb-3">Important Notes:</h3>
+            <ul className="space-y-2">
+              <li className="flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500 shrink-0 mt-0.5" />
+                <span>The test will automatically submit when the timer reaches zero.</span>
+              </li>
+              <li className="flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500 shrink-0 mt-0.5" />
+                <span>Do not refresh or close the browser window during the test.</span>
+              </li>
+              <li className="flex items-start">
+                <AlertTriangle className="h-5 w-5 mr-2 text-amber-500 shrink-0 mt-0.5" />
+                <span>Ensure a stable internet connection before starting.</span>
+              </li>
+            </ul>
+          </div>
+
+          <Separator />
+
+          {/* Declaration */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="font-medium mb-2">Declaration:</p>
+            <p className="text-sm text-gray-700">
+              I have read and understood all the instructions. I agree to follow them and take the test with integrity.
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </Button>
+          <Button onClick={handleStartTest}>
+            Start Test
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };
