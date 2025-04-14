@@ -133,92 +133,134 @@ const AddQuestion = () => {
   };
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    try {
-      const negativeMark = calculateNegativeMarks();
-      const collectionName = getCollectionName();
-      
-      // Check if we're adding a PYQ and have reached 65 questions
-      if (isPYQ && questionCount >= 65) {
+  try {
+    // Validate form data based on question type
+    if (data.questionType === "MCQ" || data.questionType === "MSQ") {
+      const filledOptions = (data.options || []).filter(opt => opt.trim() !== "");
+      if (filledOptions.length < 2) {
         toast({
-          title: "Limit Reached",
-          description: `This PYQ already has 65 questions, which is the maximum allowed.`,
+          title: "Error",
+          description: "At least two options are required",
           variant: "destructive",
         });
-        return;
-      }
-      
-      const questionData = {
-        text: data.questionText,
-        type: data.questionType as QuestionType,
-        imageUrl: data.imageUrl || null,
-        marks: parseInt(data.marks),
-        negativeMark,
-        subject: data.subject,
-        paperType,
-        timestamp: serverTimestamp(),
-      };
-
-      // Add type-specific fields
-      if (data.questionType === "MCQ") {
-        Object.assign(questionData, {
-          options: data.options?.map((text, index) => ({
-            id: String.fromCharCode(97 + index), // a, b, c, d
-            text,
-          })),
-          correctOption: data.correctOption,
-        });
-      } else if (data.questionType === "MSQ") {
-        Object.assign(questionData, {
-          options: data.options?.map((text, index) => ({
-            id: String.fromCharCode(97 + index), // a, b, c, d
-            text,
-          })),
-          correctOptions: data.correctOptions,
-        });
-      } else if (data.questionType === "NAT") {
-        Object.assign(questionData, {
-          rangeStart: parseFloat(data.rangeStart || "0"),
-          rangeEnd: parseFloat(data.rangeEnd || "0"),
-        });
+        return; // Prevent further execution
       }
 
-      // Save to Firestore
-      await addDoc(collection(db, collectionName), questionData);
-      
-      // Update question count for PYQ
-      if (isPYQ) {
-        setQuestionCount(prev => prev + 1);
+      if (data.questionType === "MCQ" && !data.correctOption) {
+        toast({
+          title: "Error",
+          description: "Please select a correct option",
+          variant: "destructive",
+        });
+        return; // Prevent further execution
       }
 
-      toast({
-        title: "Success!",
-        description: "Question added successfully",
-      });
+      if (data.questionType === "MSQ" && (!data.correctOptions || data.correctOptions.length === 0)) {
+        toast({
+          title: "Error",
+          description: "Please select at least one correct option",
+          variant: "destructive",
+        });
+        return; // Prevent further execution
+      }
+    }
 
-      // Reset the form
-      form.reset({
-        questionType: "MCQ",
-        questionText: "",
-        imageUrl: "",
-        options: ["", "", "", ""],
-        correctOption: "",
-        correctOptions: [],
-        rangeStart: "",
-        rangeEnd: "",
-        marks: "1",
-        subject: data.subject,
-      });
-      
-      setPreviewOpen(false);
-    } catch (error) {
-      console.error("Error adding question:", error);
+    if (data.questionType === "NAT" && (!data.rangeStart || !data.rangeEnd)) {
       toast({
         title: "Error",
-        description: "Failed to add question. Please try again.",
+        description: "Please provide both range values for NAT question",
         variant: "destructive",
       });
+      return; // Prevent further execution
     }
-  };
+
+    // Continue with your existing logic if validation passes...
+
+    const negativeMark = calculateNegativeMarks();
+    const collectionName = getCollectionName();
+    
+    // Check if we're adding a PYQ and have reached 65 questions
+    if (isPYQ && questionCount >= 65) {
+      toast({
+        title: "Limit Reached",
+        description: `This PYQ already has 65 questions, which is the maximum allowed.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const questionData = {
+      text: data.questionText,
+      type: data.questionType as QuestionType,
+      imageUrl: data.imageUrl || null,
+      marks: parseInt(data.marks),
+      negativeMark,
+      subject: data.subject,
+      paperType,
+      timestamp: serverTimestamp(),
+    };
+
+    // Add type-specific fields
+    if (data.questionType === "MCQ") {
+      Object.assign(questionData, {
+        options: data.options?.map((text, index) => ({
+          id: String.fromCharCode(97 + index), // a, b, c, d
+          text,
+        })),
+        correctOption: data.correctOption,
+      });
+    } else if (data.questionType === "MSQ") {
+      Object.assign(questionData, {
+        options: data.options?.map((text, index) => ({
+          id: String.fromCharCode(97 + index), // a, b, c, d
+          text,
+        })),
+        correctOptions: data.correctOptions,
+      });
+    } else if (data.questionType === "NAT") {
+      Object.assign(questionData, {
+        rangeStart: parseFloat(data.rangeStart || "0"),
+        rangeEnd: parseFloat(data.rangeEnd || "0"),
+      });
+    }
+
+    // Save to Firestore
+    await addDoc(collection(db, collectionName), questionData);
+    
+    // Update question count for PYQ
+    if (isPYQ) {
+      setQuestionCount(prev => prev + 1);
+    }
+
+    toast({
+      title: "Success!",
+      description: "Question added successfully",
+    });
+
+    // Reset the form
+    form.reset({
+      questionType: "MCQ",
+      questionText: "",
+      imageUrl: "",
+      options: ["", "", "", ""],
+      correctOption: "",
+      correctOptions: [],
+      rangeStart: "",
+      rangeEnd: "",
+      marks: "1",
+      subject: data.subject,
+    });
+    
+    setPreviewOpen(false);
+  } catch (error) {
+    console.error("Error adding question:", error);
+    toast({
+      title: "Error",
+      description: "Failed to add question. Please try again.",
+      variant: "destructive",
+    });
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
