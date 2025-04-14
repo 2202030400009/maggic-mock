@@ -84,8 +84,18 @@ export const generateSpecialTest = async (
     if (testData.questions && Array.isArray(testData.questions) && testData.questions.length > 0) {
       console.log(`Using ${testData.questions.length} embedded questions for special test`);
       
+      // Validate that each question has the required fields
+      const validQuestions = testData.questions.filter((q: any) => 
+        q && q.text && q.type && (q.type === 'MCQ' || q.type === 'MSQ' || q.type === 'NAT')
+      );
+      
+      if (validQuestions.length === 0) {
+        console.error("No valid questions found in special test data");
+        return null;
+      }
+      
       const testParams: TestParams = {
-        questions: testData.questions as Question[],
+        questions: validQuestions as Question[],
         duration: testData.duration || 60, // Default 60 minutes if not specified
         testType: "Special Test"
       };

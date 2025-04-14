@@ -1,20 +1,10 @@
+
 import { useState, useEffect } from "react";
-import { collection, query, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, query, getDocs, doc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePaper } from "@/context/PaperContext";
 import { Question } from "@/lib/types";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Edit, Search, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import {
   AlertDialog,
@@ -26,7 +16,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useNavigate } from "react-router-dom";
+
+import QuestionTable from "@/components/admin/question/QuestionTable";
+import QuestionFilterBar from "@/components/admin/question/QuestionFilterBar";
 
 const QuestionList = () => {
   const { paperType } = usePaper();
@@ -129,20 +121,6 @@ const QuestionList = () => {
       question.subject?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Get question type badge class
-  const getQuestionTypeBadge = (type: string) => {
-    switch (type) {
-      case "MCQ":
-        return "bg-blue-100 text-blue-800";
-      case "MSQ":
-        return "bg-purple-100 text-purple-800";
-      case "NAT":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const handleDeleteQuestion = async () => {
     if (!questionToDelete || !questionToDelete.id) return;
 
@@ -179,60 +157,15 @@ const QuestionList = () => {
     <div className="container mx-auto py-10">
       <h1 className="text-2xl font-bold mb-6">Question Bank</h1>
       
-      <div className="flex items-center justify-between mb-6">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Search questions..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium">Filter:</span>
-          <Tabs 
-            defaultValue="all" 
-            value={currentTab}
-            onValueChange={(value) => setCurrentTab(value as "all" | "pyq" | "general")}
-            className="w-[400px]"
-          >
-            <TabsList>
-              <TabsTrigger value="all">All Questions</TabsTrigger>
-              <TabsTrigger value="pyq">Previous Year Questions</TabsTrigger>
-              <TabsTrigger value="general">General Questions</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      </div>
-      
-      {(currentTab === "all" || currentTab === "pyq") && (
-        <div className="mb-6 flex flex-wrap gap-2">
-          <span className="text-sm font-medium py-2">PYQ Years:</span>
-          <div className="flex flex-wrap gap-2">
-            {pyqYears.map((year) => (
-              <Button
-                key={year}
-                variant={selectedYear === year ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedYear(year)}
-              >
-                {year}
-              </Button>
-            ))}
-            {selectedYear && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedYear(null)}
-              >
-                Clear
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
+      <QuestionFilterBar 
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
+        pyqYears={pyqYears}
+        selectedYear={selectedYear}
+        onYearSelect={setSelectedYear}
+      />
       
       {loading ? (
         <div className="text-center py-10">Loading questions...</div>
@@ -243,61 +176,14 @@ const QuestionList = () => {
             : "No questions available. Please add questions from the Add Question page."}
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Question</TableHead>
-                <TableHead className="w-28">Type</TableHead>
-                <TableHead className="w-32">Subject</TableHead>
-                <TableHead className="w-24">Marks</TableHead>
-                <TableHead className="w-24">Negative</TableHead>
-                <TableHead className="w-28">Paper/Year</TableHead>
-                <TableHead className="w-20">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredQuestions.map((question, index) => (
-                <TableRow key={question.id}>
-                  <TableCell className="font-medium">{index + 1}</TableCell>
-                  <TableCell className="max-w-md truncate">{question.text}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getQuestionTypeBadge(question.type)}`}>
-                      {question.type}
-                    </span>
-                  </TableCell>
-                  <TableCell>{question.subject}</TableCell>
-                  <TableCell>{question.marks}</TableCell>
-                  <TableCell>{question.negativeMark}</TableCell>
-                  <TableCell>{question.paperType || "General"}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleEditQuestion(question)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-red-500 hover:text-red-700"
-                        onClick={() => {
-                          setQuestionToDelete(question);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <QuestionTable 
+          questions={filteredQuestions}
+          onEditQuestion={handleEditQuestion}
+          onDeleteQuestion={(question) => {
+            setQuestionToDelete(question);
+            setDeleteDialogOpen(true);
+          }}
+        />
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CheckCircle, AlertTriangle } from "lucide-react";
@@ -13,7 +12,7 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { usePaper } from "@/context/PaperContext";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Question } from "@/lib/types";
 
@@ -24,8 +23,8 @@ const Instructions = () => {
   const [specialTest, setSpecialTest] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [totalMarks, setTotalMarks] = useState<number>(180);
-  const [totalQuestions, setTotalQuestions] = useState<number>(65);
+  const [totalMarks, setTotalMarks] = useState<number>(180); // Default for PYQ tests
+  const [totalQuestions, setTotalQuestions] = useState<number>(65); // Default for PYQ tests
 
   // Fetch special test data if testId is provided
   useEffect(() => {
@@ -39,29 +38,24 @@ const Instructions = () => {
         const testSnapshot = await getDoc(testDocRef);
         
         if (testSnapshot.exists()) {
-          const testData = testSnapshot.data();
-          setSpecialTest({ id: testSnapshot.id, ...testData });
+          const testData = { id: testSnapshot.id, ...testSnapshot.data() };
+          setSpecialTest(testData);
           
-          // Fetch questions to calculate total marks for special tests
-          const questionsCollectionRef = collection(db, `specialTests/${testId}/questions`);
-          const questionsSnapshot = await getDocs(questionsCollectionRef);
-          
-          if (!questionsSnapshot.empty) {
+          // Calculate total marks and questions from embedded questions array
+          if (testData.questions && Array.isArray(testData.questions) && testData.questions.length > 0) {
             let questionMarks = 0;
-            let questionCount = 0;
-            
-            questionsSnapshot.forEach(doc => {
-              const question = doc.data() as Question;
+            testData.questions.forEach((question: Question) => {
               questionMarks += question.marks || 0;
-              questionCount++;
             });
             
-            console.log(`Total marks for special test: ${questionMarks} from ${questionCount} questions`);
+            console.log(`Total marks for special test: ${questionMarks} from ${testData.questions.length} questions`);
             setTotalMarks(questionMarks);
-            setTotalQuestions(questionCount);
+            setTotalQuestions(testData.questions.length);
           } else {
             console.error("No questions found in special test");
             setError("No questions found in this test");
+            setTotalMarks(0);
+            setTotalQuestions(0);
           }
         } else {
           console.error("Special test not found with ID:", testId);

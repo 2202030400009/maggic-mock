@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, query, getDocs } from "firebase/firestore";
+import { collection, query, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Question } from "@/lib/types";
@@ -51,7 +51,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
           console.log("Loading special test with ID:", specialTestId);
           const specialTestParams = await generateSpecialTest(specialTestId);
           
-          if (specialTestParams && specialTestParams.questions.length > 0) {
+          if (specialTestParams && specialTestParams.questions && specialTestParams.questions.length > 0) {
             console.log("Special test loaded successfully:", specialTestParams);
             testParams = specialTestParams;
           } else {
@@ -59,7 +59,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
             setError("Failed to load special test. Please try again.");
             toast({
               title: "Error",
-              description: "Failed to load special test. Please try again.",
+              description: "Failed to load special test or no questions found. Please try again.",
               variant: "destructive",
             });
             navigate("/dashboard");
