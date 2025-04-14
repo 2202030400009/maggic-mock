@@ -18,7 +18,7 @@ const formSchema = z.object({
   questionType: z.string(),
   questionText: z.string().min(1, "Question text is required"),
   imageUrl: z.string().optional(),
-  options: z.array(z.string()).min(4, "You must provide exactly 4 options for MCQ/MSQ"),
+  options: z.array(z.string()).optional(),
   correctOption: z.string().optional(),
   correctOptions: z.array(z.string()).optional(),
   rangeStart: z.string().optional(),
