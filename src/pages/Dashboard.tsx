@@ -23,7 +23,7 @@ const YearPaperCard = ({ year, paperType }: { year: number; paperType: string })
       <CardContent className="pb-2">
         <CardDescription className="space-y-1">
           <p>65 Questions</p>
-          <p>180 Marks</p>
+          <p>100 Marks</p>
           <p>Full Length Paper</p>
         </CardDescription>
       </CardContent>

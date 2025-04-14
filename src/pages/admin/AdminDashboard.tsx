@@ -26,8 +26,8 @@ const AdminDashboard = () => {
         const responsesSnapshot = await getDocs(collection(db, "testResponses"));
         setTestResponsesCount(responsesSnapshot.size);
 
-        // Get feedback count
-        const feedbackSnapshot = await getDocs(collection(db, "feedback"));
+        // Get feedback count - Fixed collection name from 'feedback' to 'feedbacks'
+        const feedbackSnapshot = await getDocs(collection(db, "feedbacks"));
         setFeedbackCount(feedbackSnapshot.size);
         
         // Get special tests count

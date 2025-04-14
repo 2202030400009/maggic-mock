@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { CheckCircle, AlertTriangle } from "lucide-react";
@@ -23,7 +24,7 @@ const Instructions = () => {
   const [specialTest, setSpecialTest] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [totalMarks, setTotalMarks] = useState<number>(180); // Default for PYQ tests
+  const [totalMarks, setTotalMarks] = useState<number>(100); // Default for PYQ tests is now 100
   const [totalQuestions, setTotalQuestions] = useState<number>(65); // Default for PYQ tests
 
   // Fetch special test data if testId is provided
