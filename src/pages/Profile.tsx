@@ -39,11 +39,12 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState("tests");
 
   useEffect(() => {
-    if (!currentUser) return;
-
     const fetchTestHistory = async () => {
+      if (!currentUser) return;
+      
       setLoading(true);
       try {
+        console.log("Fetching test history for user:", currentUser.uid);
         const q = query(
           collection(db, "testResponses"), 
           where("userId", "==", currentUser.uid),
@@ -53,21 +54,40 @@ const Profile = () => {
         const querySnapshot = await getDocs(q);
         const history: TestHistory[] = [];
         
+        console.log("Query snapshot size:", querySnapshot.size);
+        
         querySnapshot.forEach((doc) => {
           const data = doc.data();
+          console.log("Processing test response doc:", doc.id, data);
+          
+          // Safely handle timestamp field
+          let timestamp;
+          if (data.timestamp) {
+            if (data.timestamp.toDate) {
+              timestamp = data.timestamp.toDate();
+            } else if (data.timestamp instanceof Date) {
+              timestamp = data.timestamp;
+            } else {
+              timestamp = new Date();
+            }
+          } else {
+            timestamp = new Date();
+          }
+          
           history.push({
             id: doc.id,
-            testType: data.testType,
-            paperType: data.paperType,
-            year: data.year,
-            totalMarks: data.totalMarks,
-            scoredMarks: data.scoredMarks,
-            scaledMarks: data.scaledMarks,
-            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(),
-            totalTime: data.totalTime
+            testType: data.testType || "Unknown",
+            paperType: data.paperType || "Unknown",
+            year: data.year || null,
+            totalMarks: data.totalMarks || 0,
+            scoredMarks: data.scoredMarks || 0,
+            scaledMarks: data.scaledMarks || 0,
+            timestamp: timestamp,
+            totalTime: data.totalTime || 0
           });
         });
         
+        console.log("Fetched test history:", history);
         setTestHistory(history);
       } catch (error) {
         console.error("Error fetching test history:", error);

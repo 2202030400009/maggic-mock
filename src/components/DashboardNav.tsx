@@ -44,7 +44,7 @@ const DashboardNav = () => {
             >
               <BookOpen className="h-5 w-5 text-indigo-600" />
               <span>
-                MagGIC <span className="text-indigo-600">Mock</span>
+                Maggic <span className="text-indigo-600">Mock</span>
               </span>
             </Link>
             
