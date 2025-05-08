@@ -44,13 +44,14 @@ const DashboardNav = () => {
             >
               <BookOpen className="h-5 w-5 text-indigo-600" />
               <span>
-                Maggic <span className="text-indigo-600">Mock</span>
+                MagGIC <span className="text-indigo-600">Mock</span>
               </span>
             </Link>
             
             <div className="ml-10 flex items-baseline space-x-4">
               <Link 
                 to="/dashboard"
+
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
                   location.pathname === '/dashboard' 
                     ? 'text-indigo-700 bg-indigo-50' 

@@ -6,12 +6,11 @@ import { usePaper } from "@/context/PaperContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, FileText, Settings, LogOut, Shield, BrainCircuit, User } from "lucide-react";
+import { BookOpen, FileText, Settings, LogOut, Shield, BrainCircuit } from "lucide-react";
 import FeedbackButton from "@/components/FeedbackButton";
 import PaperSwitcher from "@/components/PaperSwitcher";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import DashboardNav from "@/components/DashboardNav";
 
 const YearPaperCard = ({ year, paperType }: { year: number; paperType: string }) => {
   const navigate = useNavigate();
@@ -124,7 +123,25 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-      <DashboardNav />
+      <header className="bg-white shadow">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="h-6 w-6 text-indigo-600" />
+            <h1 className="text-xl font-bold">MaggicMock</h1>
+          </div>
+          <div className="flex items-center space-x-4">
+            <PaperSwitcher />
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => navigate("/admin")}>
+                <Shield className="h-4 w-4 mr-1" /> Admin
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <LogOut className="h-4 w-4 mr-1" /> Sign Out
+            </Button>
+          </div>
+        </div>
+      </header>
 
       <main className="container mx-auto px-4 py-8">
         <section className="mb-12">

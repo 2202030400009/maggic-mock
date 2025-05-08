@@ -35,11 +35,11 @@ export const useTestTimer = ({
       const now = Date.now();
       const elapsed = Math.floor((now - lastTickRef.current) / 1000); // Convert to seconds
       
-      // Only update if time has actually elapsed (at least 1 second)
+      // Update the last tick time
+      lastTickRef.current = now;
+      
+      // Only decrement if there's actual time elapsed (handles tab focus/background)
       if (elapsed > 0) {
-        // Update the last tick time
-        lastTickRef.current = now;
-        
         setRemainingTime(prev => {
           const newTime = Math.max(0, prev - elapsed);
           
@@ -52,7 +52,7 @@ export const useTestTimer = ({
           return newTime;
         });
       }
-    }, 200); // Check more frequently (5 times per second) for smoother updates
+    }, 1000);
     
     return () => clearInterval(timerInterval);
   }, [loading, setRemainingTime, handleSubmitTest]);
@@ -69,16 +69,15 @@ export const useTestTimer = ({
       const elapsedSeconds = Math.floor((now - questionStartTimeRef.current) / 1000);
       
       if (elapsedSeconds > 0) {
-        // Reset the timer reference
-        questionStartTimeRef.current = now;
+        questionStartTimeRef.current = now; // Reset the timer
         
         setTimeSpent(prev => {
           const updated = [...prev];
-          updated[currentQuestion] = (updated[currentQuestion] || 0) + elapsedSeconds;
+          updated[currentQuestion] = (updated[currentQuestion] || 0) + 1;
           return updated;
         });
       }
-    }, 200); // Check more frequently for smoother updates
+    }, 1000);
     
     return () => {
       clearInterval(questionInterval);
