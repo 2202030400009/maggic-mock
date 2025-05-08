@@ -1,14 +1,13 @@
-
 import { useEffect, useRef } from "react";
 
 export interface UseTestTimerProps {
   loading: boolean;
-  remainingTime: number;
-  setRemainingTime: React.Dispatch<React.SetStateAction<number>>;
+  remainingTime: number; // Time allocated for the test
+  setRemainingTime: React.Dispatch<React.SetStateAction<number>>; // Setter to update the remaining time
   currentQuestion: number;
-  timeSpent: number[];
+  timeSpent: number[]; // Time spent on each question
   setTimeSpent: React.Dispatch<React.SetStateAction<number[]>>;
-  handleSubmitTest: () => void;
+  handleSubmitTest: () => void; // Function to submit the test when time is up
 }
 
 export const useTestTimer = ({
@@ -20,70 +19,86 @@ export const useTestTimer = ({
   setTimeSpent,
   handleSubmitTest
 }: UseTestTimerProps) => {
-  // References for accurate timing
-  const lastTickRef = useRef<number>(0);
-  const questionStartTimeRef = useRef<number>(0);
-  
-  // Main timer for test duration - Using Date.now() for accurate timing
-  useEffect(() => {
-    if (loading) return;
-    
-    // Initialize the reference time when the effect first runs
-    lastTickRef.current = Date.now();
-    
-    const timerInterval = setInterval(() => {
-      const now = Date.now();
-      const elapsed = Math.floor((now - lastTickRef.current) / 1000); // Convert to seconds
-      
-      // Update the last tick time
-      lastTickRef.current = now;
-      
-      // Only decrement if there's actual time elapsed (handles tab focus/background)
-      if (elapsed > 0) {
-        setRemainingTime(prev => {
-          const newTime = Math.max(0, prev - elapsed);
-          
-          if (newTime <= 0) {
-            clearInterval(timerInterval);
-            handleSubmitTest();
-            return 0;
-          }
-          
-          return newTime;
-        });
-      }
-    }, 1000);
-    
-    return () => clearInterval(timerInterval);
-  }, [loading, setRemainingTime, handleSubmitTest]);
-  
-  // Question-specific timer using Date.now() for accuracy
-  useEffect(() => {
-    if (loading) return;
-    
-    // Set the start time for this question
-    questionStartTimeRef.current = Date.now();
-    
-    const questionInterval = setInterval(() => {
-      const now = Date.now();
-      const elapsedSeconds = Math.floor((now - questionStartTimeRef.current) / 1000);
-      
-      if (elapsedSeconds > 0) {
-        questionStartTimeRef.current = now; // Reset the timer
-        
-        setTimeSpent(prev => {
-          const updated = [...prev];
-          updated[currentQuestion] = (updated[currentQuestion] || 0) + 1;
-          return updated;
-        });
-      }
-    }, 1000);
-    
-    return () => {
-      clearInterval(questionInterval);
-    };
-  }, [currentQuestion, loading, setTimeSpent]);
+  // Use refs to avoid re-renders and to persist between renders
+  const startTimeRef = useRef<number | null>(null);
+  const mainTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const questionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initialDurationRef = useRef<number>(remainingTime);
 
-  // We don't need to return anything as we're using the state directly
+  // Main timer for test duration (remaining time)
+  useEffect(() => {
+    // Don't run if loading or no time left
+    if (loading) return;
+    
+    // Initialize start time if not already set
+    if (startTimeRef.current === null) {
+      startTimeRef.current = Date.now();
+      initialDurationRef.current = remainingTime;
+    }
+
+    // Clear any existing timer to prevent duplicates
+    if (mainTimerRef.current) {
+      clearInterval(mainTimerRef.current);
+    }
+
+    // Only start timer if there's time remaining
+    if (remainingTime > 0) {
+      // Create a new timer that updates every second
+      mainTimerRef.current = setInterval(() => {
+        // Calculate the elapsed time since test started
+        const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+        // Calculate new remaining time
+        const newRemainingTime = Math.max(0, initialDurationRef.current - elapsedSeconds);
+        
+        // Update the remaining time
+        setRemainingTime(newRemainingTime);
+        
+        // Check if time is up
+        if (newRemainingTime <= 0) {
+          if (mainTimerRef.current) {
+            clearInterval(mainTimerRef.current);
+          }
+          handleSubmitTest();
+        }
+      }, 1000);
+    } else if (remainingTime <= 0) {
+      // If time is already up, submit the test
+      handleSubmitTest();
+    }
+
+    // Cleanup function
+    return () => {
+      if (mainTimerRef.current) {
+        clearInterval(mainTimerRef.current);
+      }
+    };
+  }, [loading, handleSubmitTest]);
+
+  // Question-specific timer (time spent on the current question)
+  useEffect(() => {
+    if (loading || remainingTime <= 0) return;
+    
+    // Clear previous question timer
+    if (questionTimerRef.current) {
+      clearInterval(questionTimerRef.current);
+    }
+    
+    // Start a new timer for the current question
+    questionTimerRef.current = setInterval(() => {
+      setTimeSpent(prev => {
+        const updated = [...prev];
+        updated[currentQuestion] = (updated[currentQuestion] || 0) + 1;
+        return updated;
+      });
+    }, 1000);
+    
+    // Cleanup function
+    return () => {
+      if (questionTimerRef.current) {
+        clearInterval(questionTimerRef.current);
+      }
+    };
+  }, [currentQuestion, loading, remainingTime, setTimeSpent]);
+  
   return null;
 };
