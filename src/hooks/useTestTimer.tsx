@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export interface UseTestTimerProps {
   loading: boolean;
@@ -20,44 +20,67 @@ export const useTestTimer = ({
   setTimeSpent,
   handleSubmitTest
 }: UseTestTimerProps) => {
-  // Main timer for test duration
+  // References for accurate timing
+  const lastTickRef = useRef<number>(0);
+  const questionStartTimeRef = useRef<number>(0);
+  
+  // Main timer for test duration - Using Date.now() for accurate timing
   useEffect(() => {
     if (loading) return;
     
-    const timer = setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmitTest();
-          return 0;
-        }
-        return prev - 1;
-      });
+    // Initialize the reference time when the effect first runs
+    lastTickRef.current = Date.now();
+    
+    const timerInterval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - lastTickRef.current) / 1000); // Convert to seconds
+      
+      // Update the last tick time
+      lastTickRef.current = now;
+      
+      // Only decrement if there's actual time elapsed (handles tab focus/background)
+      if (elapsed > 0) {
+        setRemainingTime(prev => {
+          const newTime = Math.max(0, prev - elapsed);
+          
+          if (newTime <= 0) {
+            clearInterval(timerInterval);
+            handleSubmitTest();
+            return 0;
+          }
+          
+          return newTime;
+        });
+      }
     }, 1000);
     
-    return () => clearInterval(timer);
+    return () => clearInterval(timerInterval);
   }, [loading, setRemainingTime, handleSubmitTest]);
   
-  // Question-specific timer
+  // Question-specific timer using Date.now() for accuracy
   useEffect(() => {
     if (loading) return;
     
-    let questionTimer: NodeJS.Timeout;
+    // Set the start time for this question
+    questionStartTimeRef.current = Date.now();
     
-    const startTimer = () => {
-      questionTimer = setInterval(() => {
+    const questionInterval = setInterval(() => {
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - questionStartTimeRef.current) / 1000);
+      
+      if (elapsedSeconds > 0) {
+        questionStartTimeRef.current = now; // Reset the timer
+        
         setTimeSpent(prev => {
           const updated = [...prev];
           updated[currentQuestion] = (updated[currentQuestion] || 0) + 1;
           return updated;
         });
-      }, 1000);
-    };
-    
-    startTimer();
+      }
+    }, 1000);
     
     return () => {
-      if (questionTimer) clearInterval(questionTimer);
+      clearInterval(questionInterval);
     };
   }, [currentQuestion, loading, setTimeSpent]);
 

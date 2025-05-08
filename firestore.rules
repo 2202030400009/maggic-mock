@@ -1,0 +1,72 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && 
+             request.auth.token.email == "admin@example.com"; // Replace with your admin email
+    }
+    
+    // Function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Restrict access to questions collection
+    match /questions/{questionId} {
+      // Only allow admin to create and update questions
+      allow create, update, delete: if isAdmin();
+      // Allow authenticated users to read questions, but not the answers
+      allow read: if isAuthenticated();
+    }
+    
+    // Restrict access to pyqQuestions collections
+    match /pyqQuestions_{paperType}_{year}/{questionId} {
+      // Only allow admin to create and update questions
+      allow create, update, delete: if isAdmin();
+      // Allow authenticated users to read questions, but not the answers
+      allow read: if isAuthenticated();
+    }
+    
+    // Restrict access to specialTests collection
+    match /specialTests/{testId} {
+      // Only allow admin to create and update special tests
+      allow create, update, delete: if isAdmin();
+      // Allow authenticated users to read special test details
+      allow read: if isAuthenticated();
+    }
+    
+    // Restrict access to testResponses collection
+    match /testResponses/{responseId} {
+      // Allow users to create test responses
+      allow create: if isAuthenticated();
+      // Allow users to read their own test responses
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      // Allow admins to read all test responses
+      allow read: if isAdmin();
+    }
+    
+    // Restrict access to feedbacks collection
+    match /feedbacks/{feedbackId} {
+      // Allow authenticated users to create feedback
+      allow create: if isAuthenticated();
+      // Only allow admin to read all feedbacks
+      allow read: if isAdmin();
+    }
+    
+    // For user profiles
+    match /users/{userId} {
+      // Allow users to read and write only their own documents
+      allow read, write: if request.auth.uid == userId;
+      // Allow admin to read all user profiles
+      allow read: if isAdmin();
+    }
+    
+    // Default rule - deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

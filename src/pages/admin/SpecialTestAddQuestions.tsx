@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc, updateDoc, arrayUnion, addDoc, collection } from "firebase/firestore";
@@ -26,6 +25,18 @@ import PaperSwitcher from "@/components/PaperSwitcher";
 import QuestionForm from "@/components/admin/specialTests/QuestionForm";
 import QuestionPreview from "@/components/admin/specialTests/QuestionPreview";
 import TestInfoCard from "@/components/admin/specialTests/TestInfoCard";
+import { Question } from "@/lib/types";
+
+// Define SpecialTest interface for type safety
+interface SpecialTest {
+  id: string;
+  name?: string;
+  description?: string;
+  numQuestions?: number;
+  duration?: number;
+  questions?: Question[];
+  [key: string]: any; // For any other properties
+}
 
 const formSchema = z.object({
   questionType: z.string(),
@@ -48,7 +59,7 @@ const SpecialTestAddQuestions = () => {
   const { paperType } = usePaper();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [testData, setTestData] = useState<any>(null);
+  const [testData, setTestData] = useState<SpecialTest | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [questionLimitReached, setQuestionLimitReached] = useState(false);
@@ -64,7 +75,10 @@ const SpecialTestAddQuestions = () => {
         const testSnapshot = await getDoc(testDocRef);
         
         if (testSnapshot.exists()) {
-          const data = { id: testSnapshot.id, ...testSnapshot.data() };
+          const data: SpecialTest = { 
+            id: testSnapshot.id, 
+            ...testSnapshot.data() as Omit<SpecialTest, 'id'>
+          };
           setTestData(data);
           
           const questionCount = data.questions?.length || 0;

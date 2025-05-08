@@ -5,7 +5,7 @@ import { db } from "@/lib/firebase";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FilePlus, FileText, List, MessageSquare, BrainCircuit } from "lucide-react";
+import { FilePlus, FileText, List, MessageSquare, BrainCircuit, Calendar } from "lucide-react";
 
 const AdminDashboard = () => {
   const [questionCount, setQuestionCount] = useState(0);
@@ -26,7 +26,7 @@ const AdminDashboard = () => {
         const responsesSnapshot = await getDocs(collection(db, "testResponses"));
         setTestResponsesCount(responsesSnapshot.size);
 
-        // Get feedback count - Fixed collection name from 'feedback' to 'feedbacks'
+        // Get feedback count from the correct collection name 'feedbacks'
         const feedbackSnapshot = await getDocs(collection(db, "feedbacks"));
         setFeedbackCount(feedbackSnapshot.size);
         
@@ -98,12 +98,20 @@ const AdminDashboard = () => {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
             <Link to="/admin/add-question">
               <Button variant="outline" className="w-full h-24">
                 <div className="flex flex-col items-center">
                   <FilePlus className="h-6 w-6 mb-2" />
                   <span>Add Question</span>
+                </div>
+              </Button>
+            </Link>
+            <Link to="/admin/add-pyq-question">
+              <Button variant="outline" className="w-full h-24">
+                <div className="flex flex-col items-center">
+                  <Calendar className="h-6 w-6 mb-2" />
+                  <span>Add PYQ Question</span>
                 </div>
               </Button>
             </Link>

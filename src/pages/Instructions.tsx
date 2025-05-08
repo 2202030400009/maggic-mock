@@ -17,14 +17,25 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Question } from "@/lib/types";
 
+// Define a proper type for the special test data
+interface SpecialTestData {
+  id: string;
+  name?: string;
+  description?: string;
+  duration?: number;
+  numQuestions?: number;
+  questions?: Question[];
+  [key: string]: any; // For other properties that might exist
+}
+
 const Instructions = () => {
   const { year, testId } = useParams();
   const { paperType } = usePaper();
   const navigate = useNavigate();
-  const [specialTest, setSpecialTest] = useState<any>(null);
+  const [specialTest, setSpecialTest] = useState<SpecialTestData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [totalMarks, setTotalMarks] = useState<number>(100); // Default for PYQ tests is now 100
+  const [totalMarks, setTotalMarks] = useState<number>(100); // Default for PYQ tests is 100
   const [totalQuestions, setTotalQuestions] = useState<number>(65); // Default for PYQ tests
 
   // Fetch special test data if testId is provided
@@ -39,7 +50,10 @@ const Instructions = () => {
         const testSnapshot = await getDoc(testDocRef);
         
         if (testSnapshot.exists()) {
-          const testData = { id: testSnapshot.id, ...testSnapshot.data() };
+          const testData: SpecialTestData = { 
+            id: testSnapshot.id,
+            ...testSnapshot.data() as Omit<SpecialTestData, 'id'>
+          };
           setSpecialTest(testData);
           
           // Calculate total marks and questions from embedded questions array

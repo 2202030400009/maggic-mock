@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +24,7 @@ import CreateSpecialTest from "./pages/admin/CreateSpecialTest";
 import SpecialTestsList from "./pages/admin/SpecialTestsList";
 import SpecialTestAddQuestions from "./pages/admin/SpecialTestAddQuestions";
 import NotFound from "./pages/NotFound";
+import PyqQuestionCreate from './pages/admin/PyqQuestionCreate';
 
 const queryClient = new QueryClient();
 
