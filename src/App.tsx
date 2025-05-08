@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +26,7 @@ import SpecialTestsList from "./pages/admin/SpecialTestsList";
 import SpecialTestAddQuestions from "./pages/admin/SpecialTestAddQuestions";
 import NotFound from "./pages/NotFound";
 import PyqQuestionCreate from './pages/admin/PyqQuestionCreate';
+import EditQuestion from './pages/admin/EditQuestion';
 
 const queryClient = new QueryClient();
 
@@ -104,6 +106,18 @@ const App = () => (
               <Route path="/admin/add-question" element={
                 <AdminRoute>
                   <AddQuestion />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/add-pyq-question" element={
+                <AdminRoute>
+                  <PyqQuestionCreate />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/edit-question/:questionId" element={
+                <AdminRoute>
+                  <EditQuestion />
                 </AdminRoute>
               } />
               

@@ -51,7 +51,6 @@ const DashboardNav = () => {
             <div className="ml-10 flex items-baseline space-x-4">
               <Link 
                 to="/dashboard"
-
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
                   location.pathname === '/dashboard' 
                     ? 'text-indigo-700 bg-indigo-50' 
