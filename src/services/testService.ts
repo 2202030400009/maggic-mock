@@ -50,6 +50,8 @@ export const generateFullSyllabusTest = async (
   duration: number = 180
 ): Promise<TestParams | null> => {
   try {
+    console.log(`Generating full syllabus test for ${paperType} with ${numQuestions} questions`);
+    
     // Default configuration: 30 questions of 1 mark, 35 questions of 2 marks
     const oneMarkQuotaTotal = 30;
     const twoMarkQuotaTotal = 35;
@@ -87,24 +89,98 @@ export const generateFullSyllabusTest = async (
       remainingTwoMarkQuota -= twoMarkCount;
     }
     
+    console.log("Subject distribution:", subjectDistribution);
+    
     // Fetch questions for each subject based on the calculated distribution
     const allSelectedQuestions: Question[] = [];
+    const allQuestionsMap: Record<string, Question[]> = {};
     
+    // First, get all questions from the database for the paper type
+    const questionsRef = collection(db, "questions");
+    const q = query(
+      questionsRef,
+      where("paperType", "==", paperType)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const allQuestions: Question[] = [];
+    
+    querySnapshot.forEach(doc => {
+      allQuestions.push({ id: doc.id, ...doc.data() } as Question);
+    });
+    
+    console.log(`Retrieved total of ${allQuestions.length} questions for ${paperType}`);
+    
+    // Group questions by subject and marks
+    for (const question of allQuestions) {
+      const subject = question.subject;
+      const marks = question.marks;
+      
+      if (!allQuestionsMap[subject]) {
+        allQuestionsMap[subject] = [];
+      }
+      
+      allQuestionsMap[subject].push(question);
+    }
+    
+    // Distribute questions according to the calculated quotas
     for (const [subject, quota] of Object.entries(subjectDistribution)) {
+      const subjectQuestions = allQuestionsMap[subject] || [];
+      console.log(`Subject ${subject}: Found ${subjectQuestions.length} questions`);
+      
+      if (subjectQuestions.length === 0) {
+        console.log(`No questions available for subject: ${subject}`);
+        continue;
+      }
+      
       // Get 1-mark questions
       if (quota.oneMarkQuota > 0) {
-        const oneMarkQuestions = await fetchQuestionsForSubject(paperType, subject, 1, quota.oneMarkQuota);
-        allSelectedQuestions.push(...oneMarkQuestions);
+        const oneMarkQuestions = subjectQuestions.filter(q => q.marks === 1);
+        console.log(`Subject ${subject}: Found ${oneMarkQuestions.length} one-mark questions, needed ${quota.oneMarkQuota}`);
+        
+        // Shuffle and select
+        const shuffledOneMark = shuffleArray(oneMarkQuestions);
+        // Take as many as are available, up to the quota
+        const selectedOneMark = shuffledOneMark.slice(0, quota.oneMarkQuota);
+        allSelectedQuestions.push(...selectedOneMark);
+        
+        console.log(`Selected ${selectedOneMark.length} one-mark questions for ${subject}`);
       }
       
       // Get 2-mark questions
       if (quota.twoMarkQuota > 0) {
-        const twoMarkQuestions = await fetchQuestionsForSubject(paperType, subject, 2, quota.twoMarkQuota);
-        allSelectedQuestions.push(...twoMarkQuestions);
+        const twoMarkQuestions = subjectQuestions.filter(q => q.marks === 2);
+        console.log(`Subject ${subject}: Found ${twoMarkQuestions.length} two-mark questions, needed ${quota.twoMarkQuota}`);
+        
+        // Shuffle and select
+        const shuffledTwoMark = shuffleArray(twoMarkQuestions);
+        // Take as many as are available, up to the quota
+        const selectedTwoMark = shuffledTwoMark.slice(0, quota.twoMarkQuota);
+        allSelectedQuestions.push(...selectedTwoMark);
+        
+        console.log(`Selected ${selectedTwoMark.length} two-mark questions for ${subject}`);
       }
     }
     
-    // If we couldn't get the exact number of questions, adjust
+    // If we couldn't get enough questions, add more from available subjects to reach target count
+    if (allSelectedQuestions.length < numQuestions) {
+      console.log(`Only got ${allSelectedQuestions.length} questions, trying to add more to reach ${numQuestions}`);
+      
+      // Find all unused questions that weren't selected
+      const selectedIds = new Set(allSelectedQuestions.map(q => q.id));
+      const remainingQuestions = allQuestions.filter(q => !selectedIds.has(q.id));
+      
+      if (remainingQuestions.length > 0) {
+        // Shuffle remaining questions and add until we reach the target
+        const additionalNeeded = numQuestions - allSelectedQuestions.length;
+        const additionalQuestions = shuffleArray(remainingQuestions).slice(0, additionalNeeded);
+        
+        allSelectedQuestions.push(...additionalQuestions);
+        console.log(`Added ${additionalQuestions.length} additional questions to reach ${allSelectedQuestions.length} total`);
+      }
+    }
+    
+    // If we have more questions than needed, trim to the required number
     const finalQuestionCount = Math.min(numQuestions, allSelectedQuestions.length);
     const finalQuestions = shuffleArray(allSelectedQuestions).slice(0, finalQuestionCount);
     
