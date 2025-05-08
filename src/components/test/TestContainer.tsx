@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { usePaper } from "@/context/PaperContext";
@@ -18,6 +18,8 @@ const TestContainer: React.FC = () => {
   const { year, testId } = useParams();
   const navigate = useNavigate();
   const { paperType } = usePaper();
+  // Add a ref to prevent multiple time-based submissions
+  const timeSubmitRef = useRef(false);
 
   console.log("TestContainer rendered with params:", { year, testId, paperType });
 
@@ -76,19 +78,20 @@ const TestContainer: React.FC = () => {
 
   // Submit test when time runs out
   useEffect(() => {
-    if (remainingTime <= 0 && questions.length > 0) {
+    if (remainingTime <= 0 && questions.length > 0 && !timeSubmitRef.current) {
+      console.log("Time's up, submitting test");
+      timeSubmitRef.current = true; // Prevent multiple submissions
+
       toast({
         title: "Time's up!",
         description: "Your test has been automatically submitted.",
         variant: "destructive",
       });
+
       handleSubmitTest();
     }
   }, [remainingTime, questions.length, handleSubmitTest]);
 
-  // Calculate test results
-  const { calculateResults } = useTestResults();
-  
   // If the test is still loading, show a loading message
   if (loading) {
     return <TestLoading />;

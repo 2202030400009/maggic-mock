@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -38,6 +38,9 @@ export const useTestControls = ({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [markedForReview, setMarkedForReview] = useState(false);
   const [timeSpent, setTimeSpent] = useState<number[]>([]);
+  
+  // Add a ref to track if the test has been submitted
+  const hasSubmittedRef = useRef(false);
 
   const updateQuestionStatus = (status: string) => {
     setQuestionStatus(prev => ({
@@ -122,9 +125,17 @@ export const useTestControls = ({
   };
 
   const handleSubmitTest = async () => {
+    // Check if test has already been submitted to prevent multiple submissions
+    if (submitting || hasSubmittedRef.current) {
+      console.log("Test submission already in progress or completed, ignoring duplicate call");
+      return;
+    }
+
     try {
-      if (submitting) return;
       setSubmitting(true);
+      // Mark the test as submitted to prevent further submissions
+      hasSubmittedRef.current = true;
+      console.log("Starting test submission process");
       
       // Save the last question answer before submitting
       saveCurrentQuestionAnswer();
@@ -197,6 +208,7 @@ export const useTestControls = ({
         };
         
         try {
+          console.log("Saving test response to Firestore");
           const docRef = await addDoc(collection(db, "testResponses"), testResponse);
           console.log("Test submission successful with ID:", docRef.id);
           
@@ -217,6 +229,7 @@ export const useTestControls = ({
           navigate("/result");
         } catch (error) {
           console.error("Error submitting test to Firestore:", error);
+          hasSubmittedRef.current = false; // Reset flag on error to allow retry
           throw error;
         }
       } else {
@@ -230,6 +243,7 @@ export const useTestControls = ({
         variant: "destructive",
       });
       setSubmitting(false);
+      hasSubmittedRef.current = false; // Reset flag on error to allow retry
     }
   };
 
