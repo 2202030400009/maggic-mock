@@ -43,7 +43,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
         if (storedParams) {
           testParams = JSON.parse(storedParams);
           sessionStorage.removeItem('testParams');
-          console.log("Using stored test parameters:", testParams);
+          // console.log("Using stored test parameters:", testParams);
         } 
         
         // Handle special test case
