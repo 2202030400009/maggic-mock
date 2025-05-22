@@ -20,6 +20,7 @@ export interface Question {
   negativeMark: number;
   subject: string;
   paperType?: string;
+  difficultyLevel?: number; // Added difficultyLevel property
 }
 
 export interface Feedback {

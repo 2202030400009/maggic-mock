@@ -11,6 +11,7 @@ import { QuestionType } from "@/lib/types";
 import { gateCSSubjects, gateDASubjects } from "@/constants/subjects";
 import { useAuth } from "@/context/AuthContext";
 import StarRating from "@/components/StarRating";
+import { Star } from "lucide-react"; // Added missing import
 
 import {
   Form,
