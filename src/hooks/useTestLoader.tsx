@@ -4,14 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { collection, query, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Question } from "@/lib/types";
+import { Question, TestParams } from "@/lib/types";
 import { generateSpecialTest } from "@/services/testService";
-
-interface TestParams {
-  questions: Question[];
-  duration: number;
-  testType: string;
-}
 
 export const useTestLoader = (year: string | undefined, paperType: string | null, testId?: string | undefined) => {
   const navigate = useNavigate();
@@ -43,7 +37,7 @@ export const useTestLoader = (year: string | undefined, paperType: string | null
         if (storedParams) {
           testParams = JSON.parse(storedParams);
           sessionStorage.removeItem('testParams');
-          // console.log("Using stored test parameters:", testParams);
+          console.log("Using stored test parameters:", testParams);
         } 
         
         // Handle special test case

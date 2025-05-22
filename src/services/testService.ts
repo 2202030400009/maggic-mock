@@ -1,4 +1,3 @@
-
 import { Question, TestParams } from "@/lib/types";
 import { fetchQuestions, shuffleArray } from "@/utils/test-utils";
 import { doc, getDoc, collection, getDocs, query, where, limit } from "firebase/firestore";
@@ -304,6 +303,7 @@ export const generateSpecialTest = async (
         testType: "Special Test"
       };
       
+      console.log("Successfully prepared special test with questions:", validQuestions.length);
       return testParams;
     }
     
