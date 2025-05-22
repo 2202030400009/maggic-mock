@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -104,6 +105,12 @@ const App = () => (
               <Route path="/admin/add-question" element={
                 <AdminRoute>
                   <AddQuestion />
+                </AdminRoute>
+              } />
+              
+              <Route path="/admin/add-pyq-question" element={
+                <AdminRoute>
+                  <PyqQuestionCreate />
                 </AdminRoute>
               } />
               
