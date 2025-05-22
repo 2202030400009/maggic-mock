@@ -4,6 +4,7 @@ import { doc, getDoc, updateDoc, arrayUnion, addDoc, collection } from "firebase
 import { db } from "@/lib/firebase";
 import { z } from "zod";
 import { usePaper } from "@/context/PaperContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
@@ -57,6 +58,7 @@ type FormData = z.infer<typeof formSchema>;
 const SpecialTestAddQuestions = () => {
   const { testId } = useParams();
   const { paperType } = usePaper();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [testData, setTestData] = useState<SpecialTest | null>(null);
@@ -203,6 +205,7 @@ const SpecialTestAddQuestions = () => {
         negativeMark,
         subject: formData.subject,
         paperType,
+        addedBy: currentUser?.email || "unknown",
       };
       
       if (formData.imageUrl) {

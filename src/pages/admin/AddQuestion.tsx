@@ -10,6 +10,7 @@ import { collection, addDoc, serverTimestamp, query, where, getDocs } from "fire
 import { usePaper } from "@/context/PaperContext";
 import { QuestionType } from "@/lib/types";
 import { gateCSSubjects, gateDASubjects } from "@/constants/subjects";
+import { useAuth } from "@/context/AuthContext";
 
 import {
   Form,
@@ -65,6 +66,7 @@ const formSchema = z.object({
 
 const AddQuestion = () => {
   const { paperType } = usePaper();
+  const { currentUser } = useAuth(); // Add this line to get the current user
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryParams = useQuery();
@@ -198,6 +200,7 @@ const AddQuestion = () => {
       subject: data.subject,
       paperType,
       timestamp: serverTimestamp(),
+      addedBy: currentUser?.email || "unknown", // Add the user's email
     };
 
     // Add type-specific fields

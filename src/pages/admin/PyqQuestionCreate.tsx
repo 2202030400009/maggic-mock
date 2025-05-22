@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePaper } from "@/context/PaperContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 const PyqQuestionCreate = () => {
   const navigate = useNavigate();
   const { paperType } = usePaper();
+  const { currentUser } = useAuth();
   const [year, setYear] = useState<string>("2023");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -133,6 +134,7 @@ const PyqQuestionCreate = () => {
         negativeMark,
         subject: formData.subject,
         paperType,
+        addedBy: currentUser?.email || "unknown",
       };
       
       if (formData.imageUrl) {
