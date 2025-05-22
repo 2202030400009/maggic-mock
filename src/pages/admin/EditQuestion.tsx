@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
@@ -17,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import StarRating from "@/components/StarRating";
 
 const formSchema = z.object({
   questionType: z.string(),
@@ -30,6 +30,7 @@ const formSchema = z.object({
   marks: z.string(),
   subject: z.string(),
   negativeMark: z.number().optional(),
+  difficultyLevel: z.number().min(1).max(5).default(3),
 });
 
 const EditQuestion = () => {
@@ -73,6 +74,7 @@ const EditQuestion = () => {
       marks: "1",
       subject: subjectList[0],
       negativeMark: -0.33,
+      difficultyLevel: 3,
     },
   });
 
@@ -92,6 +94,7 @@ const EditQuestion = () => {
         marks: String(question.marks || 1),
         subject: question.subject || subjectList[0],
         negativeMark: question.negativeMark || -0.33,
+        difficultyLevel: question.difficultyLevel || 3,
       });
     }
   }, [question, loading, form, subjectList]);
@@ -184,6 +187,7 @@ const EditQuestion = () => {
         negativeMark,
         subject: data.subject,
         paperType,
+        difficultyLevel: data.difficultyLevel,
       };
       
       if (data.imageUrl) {
@@ -579,6 +583,26 @@ const EditQuestion = () => {
                   </FormDescription>
                 </FormItem>
               </div>
+
+              {/* Difficulty Level */}
+              <FormField
+                control={form.control}
+                name="difficultyLevel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Difficulty Level</FormLabel>
+                    <FormControl>
+                      <StarRating 
+                        value={field.value} 
+                        onChange={field.onChange}
+                        label="Rate the difficulty"
+                        description="1 = Easiest, 5 = Toughest"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* Submit Buttons */}
               <div className="flex justify-end space-x-2">

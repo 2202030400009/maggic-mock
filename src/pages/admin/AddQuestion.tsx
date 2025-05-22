@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -11,6 +10,7 @@ import { usePaper } from "@/context/PaperContext";
 import { QuestionType } from "@/lib/types";
 import { gateCSSubjects, gateDASubjects } from "@/constants/subjects";
 import { useAuth } from "@/context/AuthContext";
+import StarRating from "@/components/StarRating";
 
 import {
   Form,
@@ -61,8 +61,8 @@ const formSchema = z.object({
   rangeEnd: z.string().optional(),
   marks: z.string(),
   subject: z.string(),
+  difficultyLevel: z.number().min(1).max(5).default(3),
 });
-
 
 const AddQuestion = () => {
   const { paperType } = usePaper();
@@ -118,12 +118,14 @@ const AddQuestion = () => {
       rangeEnd: "",
       marks: "1",
       subject: subjectList[0],
+      difficultyLevel: 3,
     },
   });
 
   const questionType = form.watch("questionType") as QuestionType;
   const marks = form.watch("marks");
   const imageUrl = form.watch("imageUrl");
+  const difficultyLevel = form.watch("difficultyLevel");
 
   // Calculate negative marks based on question type and marks
   const calculateNegativeMarks = () => {
@@ -135,135 +137,137 @@ const AddQuestion = () => {
   };
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-  try {
-    // Validate form data based on question type
-    if (data.questionType === "MCQ" || data.questionType === "MSQ") {
-      const filledOptions = (data.options || []).filter(opt => opt.trim() !== "");
-      if (filledOptions.length < 2) {
+    try {
+      // Validate form data based on question type
+      if (data.questionType === "MCQ" || data.questionType === "MSQ") {
+        const filledOptions = (data.options || []).filter(opt => opt.trim() !== "");
+        if (filledOptions.length < 2) {
+          toast({
+            title: "Error",
+            description: "At least two options are required",
+            variant: "destructive",
+          });
+          return; // Prevent further execution
+        }
+
+        if (data.questionType === "MCQ" && !data.correctOption) {
+          toast({
+            title: "Error",
+            description: "Please select a correct option",
+            variant: "destructive",
+          });
+          return; // Prevent further execution
+        }
+
+        if (data.questionType === "MSQ" && (!data.correctOptions || data.correctOptions.length === 0)) {
+          toast({
+            title: "Error",
+            description: "Please select at least one correct option",
+            variant: "destructive",
+          });
+          return; // Prevent further execution
+        }
+      }
+
+      if (data.questionType === "NAT" && (!data.rangeStart || !data.rangeEnd)) {
         toast({
           title: "Error",
-          description: "At least two options are required",
+          description: "Please provide both range values for NAT question",
           variant: "destructive",
         });
         return; // Prevent further execution
       }
 
-      if (data.questionType === "MCQ" && !data.correctOption) {
+      // Continue with your existing logic if validation passes...
+
+      const negativeMark = calculateNegativeMarks();
+      const collectionName = getCollectionName();
+      
+      // Check if we're adding a PYQ and have reached 65 questions
+      if (isPYQ && questionCount >= 65) {
         toast({
-          title: "Error",
-          description: "Please select a correct option",
+          title: "Limit Reached",
+          description: `This PYQ already has 65 questions, which is the maximum allowed.`,
           variant: "destructive",
         });
-        return; // Prevent further execution
+        return;
       }
+      
+      const questionData = {
+        text: data.questionText,
+        type: data.questionType as QuestionType,
+        imageUrl: data.imageUrl || null,
+        marks: parseInt(data.marks),
+        negativeMark,
+        subject: data.subject,
+        paperType,
+        timestamp: serverTimestamp(),
+        addedBy: currentUser?.email || "unknown",
+        difficultyLevel: data.difficultyLevel,
+      };
 
-      if (data.questionType === "MSQ" && (!data.correctOptions || data.correctOptions.length === 0)) {
-        toast({
-          title: "Error",
-          description: "Please select at least one correct option",
-          variant: "destructive",
+      // Add type-specific fields
+      if (data.questionType === "MCQ") {
+        Object.assign(questionData, {
+          options: data.options?.map((text, index) => ({
+            id: String.fromCharCode(97 + index), // a, b, c, d
+            text,
+          })),
+          correctOption: data.correctOption,
         });
-        return; // Prevent further execution
+      } else if (data.questionType === "MSQ") {
+        Object.assign(questionData, {
+          options: data.options?.map((text, index) => ({
+            id: String.fromCharCode(97 + index), // a, b, c, d
+            text,
+          })),
+          correctOptions: data.correctOptions,
+        });
+      } else if (data.questionType === "NAT") {
+        Object.assign(questionData, {
+          rangeStart: parseFloat(data.rangeStart || "0"),
+          rangeEnd: parseFloat(data.rangeEnd || "0"),
+        });
       }
-    }
 
-    if (data.questionType === "NAT" && (!data.rangeStart || !data.rangeEnd)) {
+      // Save to Firestore
+      await addDoc(collection(db, collectionName), questionData);
+      
+      // Update question count for PYQ
+      if (isPYQ) {
+        setQuestionCount(prev => prev + 1);
+      }
+
+      toast({
+        title: "Success!",
+        description: "Question added successfully",
+      });
+
+      // Reset the form
+      form.reset({
+        questionType: "MCQ",
+        questionText: "",
+        imageUrl: "",
+        options: ["", "", "", ""],
+        correctOption: "",
+        correctOptions: [],
+        rangeStart: "",
+        rangeEnd: "",
+        marks: "1",
+        subject: data.subject,
+        difficultyLevel: 3,
+      });
+      
+      setPreviewOpen(false);
+    } catch (error) {
+      console.error("Error adding question:", error);
       toast({
         title: "Error",
-        description: "Please provide both range values for NAT question",
+        description: "Failed to add question. Please try again.",
         variant: "destructive",
       });
-      return; // Prevent further execution
     }
-
-    // Continue with your existing logic if validation passes...
-
-    const negativeMark = calculateNegativeMarks();
-    const collectionName = getCollectionName();
-    
-    // Check if we're adding a PYQ and have reached 65 questions
-    if (isPYQ && questionCount >= 65) {
-      toast({
-        title: "Limit Reached",
-        description: `This PYQ already has 65 questions, which is the maximum allowed.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const questionData = {
-      text: data.questionText,
-      type: data.questionType as QuestionType,
-      imageUrl: data.imageUrl || null,
-      marks: parseInt(data.marks),
-      negativeMark,
-      subject: data.subject,
-      paperType,
-      timestamp: serverTimestamp(),
-      addedBy: currentUser?.email || "unknown", // Add the user's email
-    };
-
-    // Add type-specific fields
-    if (data.questionType === "MCQ") {
-      Object.assign(questionData, {
-        options: data.options?.map((text, index) => ({
-          id: String.fromCharCode(97 + index), // a, b, c, d
-          text,
-        })),
-        correctOption: data.correctOption,
-      });
-    } else if (data.questionType === "MSQ") {
-      Object.assign(questionData, {
-        options: data.options?.map((text, index) => ({
-          id: String.fromCharCode(97 + index), // a, b, c, d
-          text,
-        })),
-        correctOptions: data.correctOptions,
-      });
-    } else if (data.questionType === "NAT") {
-      Object.assign(questionData, {
-        rangeStart: parseFloat(data.rangeStart || "0"),
-        rangeEnd: parseFloat(data.rangeEnd || "0"),
-      });
-    }
-
-    // Save to Firestore
-    await addDoc(collection(db, collectionName), questionData);
-    
-    // Update question count for PYQ
-    if (isPYQ) {
-      setQuestionCount(prev => prev + 1);
-    }
-
-    toast({
-      title: "Success!",
-      description: "Question added successfully",
-    });
-
-    // Reset the form
-    form.reset({
-      questionType: "MCQ",
-      questionText: "",
-      imageUrl: "",
-      options: ["", "", "", ""],
-      correctOption: "",
-      correctOptions: [],
-      rangeStart: "",
-      rangeEnd: "",
-      marks: "1",
-      subject: data.subject,
-    });
-    
-    setPreviewOpen(false);
-  } catch (error) {
-    console.error("Error adding question:", error);
-    toast({
-      title: "Error",
-      description: "Failed to add question. Please try again.",
-      variant: "destructive",
-    });
-  }
-};
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
@@ -349,6 +353,26 @@ const AddQuestion = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Difficulty Level */}
+              <FormField
+                control={form.control}
+                name="difficultyLevel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Difficulty Level</FormLabel>
+                    <FormControl>
+                      <StarRating 
+                        value={field.value} 
+                        onChange={field.onChange}
+                        label="Rate the difficulty"
+                        description="1 = Easiest, 5 = Toughest"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -711,6 +735,24 @@ const AddQuestion = () => {
               <div>
                 <div className="text-sm text-gray-500">Marks:</div>
                 <p>{form.getValues("marks")} ({calculateNegativeMarks()} negative marks)</p>
+              </div>
+            </div>
+            
+            {/* Difficulty Level */}
+            <div className="border-t pt-4">
+              <div className="text-sm text-gray-500 mb-2">Difficulty Level:</div>
+              <div className="flex items-center">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Star
+                    key={index}
+                    className={`w-5 h-5 ${
+                      index < difficultyLevel
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  />
+                ))}
+                <span className="ml-2 text-sm">{difficultyLevel} / 5</span>
               </div>
             </div>
           </div>

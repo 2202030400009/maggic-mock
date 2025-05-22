@@ -51,6 +51,7 @@ const formSchema = z.object({
   marks: z.string(),
   subject: z.string(),
   negativeMark: z.number().optional(),
+  difficultyLevel: z.number().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -206,6 +207,7 @@ const SpecialTestAddQuestions = () => {
         subject: formData.subject,
         paperType,
         addedBy: currentUser?.email || "unknown",
+        difficultyLevel: formData.difficultyLevel || 3,
       };
       
       if (formData.imageUrl) {
@@ -390,6 +392,7 @@ const SpecialTestAddQuestions = () => {
               subject={formData.subject}
               marks={formData.marks}
               negativeMark={calculateNegativeMarks()}
+              difficultyLevel={formData.difficultyLevel || 3}
               onSave={handleSubmit}
               onEdit={() => setPreviewOpen(false)}
               isSubmitting={isSubmitting || isSubmitDisabled}

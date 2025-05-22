@@ -135,6 +135,7 @@ const PyqQuestionCreate = () => {
         subject: formData.subject,
         paperType,
         addedBy: currentUser?.email || "unknown",
+        difficultyLevel: formData.difficultyLevel || 3,
       };
       
       if (formData.imageUrl) {
@@ -315,6 +316,7 @@ const PyqQuestionCreate = () => {
               subject={formData.subject}
               marks={formData.marks}
               negativeMark={calculateNegativeMarks()}
+              difficultyLevel={formData.difficultyLevel || 3}
               onSave={handleSubmit}
               onEdit={() => setPreviewOpen(false)}
               isSubmitting={isSubmitting}

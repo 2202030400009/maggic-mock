@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
+import { Save, Star } from "lucide-react";
 
 interface QuestionPreviewProps {
   questionType: string;
@@ -15,6 +15,7 @@ interface QuestionPreviewProps {
   subject: string;
   marks: string;
   negativeMark: number;
+  difficultyLevel: number;
   onSave: () => void;
   onEdit: () => void;
   isSubmitting: boolean;
@@ -32,6 +33,7 @@ const QuestionPreview: React.FC<QuestionPreviewProps> = ({
   subject,
   marks,
   negativeMark,
+  difficultyLevel,
   onSave,
   onEdit,
   isSubmitting
@@ -101,6 +103,23 @@ const QuestionPreview: React.FC<QuestionPreviewProps> = ({
         <div>
           <div className="text-sm text-gray-500">Marks:</div>
           <p>{marks} ({negativeMark} negative marks)</p>
+        </div>
+      </div>
+      
+      <div className="border-t pt-4">
+        <div className="text-sm text-gray-500 mb-2">Difficulty Level:</div>
+        <div className="flex items-center">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Star
+              key={index}
+              className={`w-5 h-5 ${
+                index < difficultyLevel
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "text-gray-300"
+              }`}
+            />
+          ))}
+          <span className="ml-2 text-sm">{difficultyLevel} / 5</span>
         </div>
       </div>
       

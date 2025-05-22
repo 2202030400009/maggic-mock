@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye } from "lucide-react";
 import { QuestionType } from "@/lib/types";
+import StarRating from "@/components/StarRating";
 
 const formSchema = z.object({
   questionType: z.string(),
@@ -26,6 +27,7 @@ const formSchema = z.object({
   marks: z.string(),
   subject: z.string(),
   negativeMark: z.number().optional(),
+  difficultyLevel: z.number().min(1).max(5).default(3),
 });
 
 interface QuestionFormProps {
@@ -51,12 +53,14 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ paperType, onPreview, onCan
       marks: "1",
       subject: subjectList[0],
       negativeMark: -0.33,
+      difficultyLevel: 3,
     },
   });
 
   const questionType = form.watch("questionType") as QuestionType;
   const marks = form.watch("marks");
   const imageUrl = form.watch("imageUrl");
+  const difficultyLevel = form.watch("difficultyLevel");
 
   const calculateNegativeMarks = () => {
     if (questionType === "MCQ") {
@@ -399,6 +403,26 @@ const QuestionForm: React.FC<QuestionFormProps> = ({ paperType, onPreview, onCan
             </FormDescription>
           </FormItem>
         </div>
+
+        {/* Difficulty Level Rating */}
+        <FormField
+          control={form.control}
+          name="difficultyLevel"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Difficulty Level</FormLabel>
+              <FormControl>
+                <StarRating 
+                  value={field.value} 
+                  onChange={field.onChange}
+                  label="Rate the difficulty"
+                  description="1 = Easiest, 5 = Toughest"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <div className="flex justify-end space-x-2">
           <Button type="button" variant="outline" onClick={onCancel}>
