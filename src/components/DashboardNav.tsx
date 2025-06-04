@@ -62,7 +62,7 @@ const DashboardNav = () => {
               </Link>
               <Link 
                 to="/create-test"
-                className={`px-3 py-2 rounded-md text-base font-medium ${
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
                   location.pathname === '/create-test' 
                     ? 'text-indigo-700 bg-indigo-50' 
                     : 'text-gray-600 hover:text-gray-900'
