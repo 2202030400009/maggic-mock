@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Option, Question } from "@/lib/types";
+import { isValidImageUrl } from "@/utils/imageUtils";
 
 // Helper function to format MAT range
 const formatRange = (start?: number, end?: number) => {
@@ -87,6 +88,25 @@ const QuestionDisplay = ({
     }
   };
 
+  const renderOptionContent = (option: Option) => {
+    if (isValidImageUrl(option.text)) {
+      return (
+        <img 
+          src={option.text} 
+          alt={`Option ${option.id}`}
+          className="max-w-full max-h-32 object-contain rounded"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      );
+    } else {
+      return (
+        <span dangerouslySetInnerHTML={{ __html: option.text }} />
+      );
+    }
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       {/* Question number and mark */}
@@ -153,12 +173,11 @@ const QuestionDisplay = ({
                   )}
                 </div>
               </div>
-              <span
-                className={`text-gray-700 ${
-                  selectedOption === option.id ? "font-medium" : ""
-                }`}
-                dangerouslySetInnerHTML={{ __html: option.text }}
-              />
+              <div className={`text-gray-700 ${
+                selectedOption === option.id ? "font-medium" : ""
+              }`}>
+                {renderOptionContent(option)}
+              </div>
             </div>
           ))}
         </div>
@@ -191,12 +210,11 @@ const QuestionDisplay = ({
                   )}
                 </div>
               </div>
-              <span
-                className={`text-gray-700 ${
-                  selectedOptions.includes(option.id) ? "font-medium" : ""
-                }`}
-                dangerouslySetInnerHTML={{ __html: option.text }}
-              />
+              <div className={`text-gray-700 ${
+                selectedOptions.includes(option.id) ? "font-medium" : ""
+              }`}>
+                {renderOptionContent(option)}
+              </div>
             </div>
           ))}
         </div>
