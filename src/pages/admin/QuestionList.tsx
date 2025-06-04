@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { collection, query, getDocs, doc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -6,6 +5,8 @@ import { usePaper } from "@/context/PaperContext";
 import { Question } from "@/lib/types";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +20,7 @@ import {
 
 import QuestionTable from "@/components/admin/question/QuestionTable";
 import QuestionFilterBar from "@/components/admin/question/QuestionFilterBar";
+import DuplicateQuestionManager from "@/components/admin/question/DuplicateQuestionManager";
 
 const QuestionList = () => {
   const { paperType } = usePaper();
@@ -31,6 +33,7 @@ const QuestionList = () => {
   const [pyqYears, setPyqYears] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
+  const [duplicateManagerOpen, setDuplicateManagerOpen] = useState(false);
 
   // Fetch available PYQ years
   useEffect(() => {
@@ -155,7 +158,17 @@ const QuestionList = () => {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-2xl font-bold mb-6">Question Bank</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Question Bank</h1>
+        <Button 
+          variant="destructive" 
+          onClick={() => setDuplicateManagerOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Duplicates
+        </Button>
+      </div>
       
       <QuestionFilterBar 
         searchTerm={searchTerm}
@@ -205,6 +218,11 @@ const QuestionList = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DuplicateQuestionManager 
+        open={duplicateManagerOpen}
+        onOpenChange={setDuplicateManagerOpen}
+      />
     </div>
   );
 };
