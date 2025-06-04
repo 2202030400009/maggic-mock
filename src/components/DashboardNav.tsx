@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Book, LogOut, Settings, User, BookOpen, ArrowLeftRight } from "lucide-react";
+import { Book, LogOut, Settings, User, BookOpen, ArrowLeftRight, PlusCircle } from "lucide-react";
 import { usePaper } from "@/context/PaperContext";
 import PaperSwitcher from "./PaperSwitcher";
 
@@ -44,7 +44,7 @@ const DashboardNav = () => {
             >
               <BookOpen className="h-5 w-5 text-indigo-600" />
               <span>
-                MagGIC <span className="text-indigo-600">Mock</span>
+                Maggic<span className="text-indigo-600">Mock</span>
               </span>
             </Link>
             
@@ -62,15 +62,16 @@ const DashboardNav = () => {
               </Link>
               <Link 
                 to="/create-test"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                className={`px-3 py-2 rounded-md text-base font-medium ${
                   location.pathname === '/create-test' 
                     ? 'text-indigo-700 bg-indigo-50' 
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
+                <PlusCircle className="inline-block h-3 w-3 mr-1" />
                 Create Test
               </Link>
-              <Link 
+              {/* <Link 
                 to="/profile"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
                   location.pathname === '/profile' 
@@ -80,7 +81,7 @@ const DashboardNav = () => {
               >
                 <User className="inline-block h-4 w-4 mr-1" />
                 Profile
-              </Link>
+              </Link> */}
             </div>
           </div>
           
