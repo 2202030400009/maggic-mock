@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { QuestionDetail } from "@/types/result";
 import { useState } from "react";
 import QuestionDetailDialog from "./QuestionDetailDialog";
+import { isValidImageUrl } from "@/utils/imageUtils";
 
 interface QuestionAnalysisTableProps {
   questionDetails: QuestionDetail[];
@@ -21,18 +22,50 @@ const QuestionAnalysisTable = ({ questionDetails }: QuestionAnalysisTableProps) 
     return "bg-orange-50 hover:bg-orange-100"; // For wrong but no negative marking
   };
 
+  const renderOptionContent = (optionText: string) => {
+    if (isValidImageUrl(optionText)) {
+      return (
+        <img 
+          src={optionText} 
+          alt="Option"
+          className="max-w-16 max-h-16 object-contain rounded border inline-block"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.insertAdjacentText('afterend', optionText);
+          }}
+        />
+      );
+    }
+    return optionText;
+  };
+
   const getCorrectAnswerDisplay = (question: QuestionDetail) => {
     if (question.type === "MCQ" && question.correctOption) {
       const option = question.options?.find(o => o.id === question.correctOption);
-      return `${question.correctOption.toUpperCase()}: ${option?.text || ""}`;
+      if (option) {
+        return (
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{question.correctOption.toUpperCase()}:</span>
+            {renderOptionContent(option.text)}
+          </div>
+        );
+      }
+      return `${question.correctOption.toUpperCase()}:`;
     } 
     else if (question.type === "MSQ" && question.correctOptions) {
-      return question.correctOptions
-        .map(id => {
-          const option = question.options?.find(o => o.id === id);
-          return `${id.toUpperCase()}: ${option?.text || ""}`;
-        })
-        .join(", ");
+      return (
+        <div className="space-y-1">
+          {question.correctOptions.map(id => {
+            const option = question.options?.find(o => o.id === id);
+            return (
+              <div key={id} className="flex items-center gap-2">
+                <span className="font-medium">{id.toUpperCase()}:</span>
+                {option && renderOptionContent(option.text)}
+              </div>
+            );
+          })}
+        </div>
+      );
     }
     else if (question.type === "NAT") {
       return `${question.rangeStart} to ${question.rangeEnd}`;
@@ -47,16 +80,31 @@ const QuestionAnalysisTable = ({ questionDetails }: QuestionAnalysisTableProps) 
     
     if (type === "MCQ" && typeof userAnswer === "string") {
       const option = question.options?.find(o => o.id === userAnswer);
-      return `${userAnswer.toUpperCase()}: ${option?.text || ""}`;
+      if (option) {
+        return (
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{userAnswer.toUpperCase()}:</span>
+            {renderOptionContent(option.text)}
+          </div>
+        );
+      }
+      return `${userAnswer.toUpperCase()}:`;
     } 
     else if (type === "MSQ" && Array.isArray(userAnswer)) {
       if (userAnswer.length === 0) return "None selected";
-      return userAnswer
-        .map(id => {
-          const option = question.options?.find(o => o.id === id);
-          return `${id.toUpperCase()}: ${option?.text || ""}`;
-        })
-        .join(", ");
+      return (
+        <div className="space-y-1">
+          {userAnswer.map(id => {
+            const option = question.options?.find(o => o.id === id);
+            return (
+              <div key={id} className="flex items-center gap-2">
+                <span className="font-medium">{id.toUpperCase()}:</span>
+                {option && renderOptionContent(option.text)}
+              </div>
+            );
+          })}
+        </div>
+      );
     }
     else if (type === "NAT" && typeof userAnswer === "string") {
       return userAnswer;

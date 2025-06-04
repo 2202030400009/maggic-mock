@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { QuestionDetail } from "@/types/result";
+import { isValidImageUrl } from "@/utils/imageUtils";
 
 interface QuestionDetailDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   question: QuestionDetail | null;
-  getUserAnswerDisplay: (question: QuestionDetail) => string;
+  getUserAnswerDisplay: (question: QuestionDetail) => React.ReactNode;
 }
 
 const QuestionDetailDialog = ({
@@ -18,6 +19,23 @@ const QuestionDetailDialog = ({
   getUserAnswerDisplay
 }: QuestionDetailDialogProps) => {
   if (!question) return null;
+
+  const renderOptionContent = (optionText: string) => {
+    if (isValidImageUrl(optionText)) {
+      return (
+        <img 
+          src={optionText} 
+          alt="Option"
+          className="max-w-full max-h-32 object-contain rounded border"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.insertAdjacentText('afterend', optionText);
+          }}
+        />
+      );
+    }
+    return <span>{optionText}</span>;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -79,7 +97,7 @@ const QuestionDetailDialog = ({
                       <div className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center mr-3">
                         {option.id.toUpperCase()}
                       </div>
-                      <span>{option.text}</span>
+                      {renderOptionContent(option.text)}
                     </div>
                   </div>
                 ))}
