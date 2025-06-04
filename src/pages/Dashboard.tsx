@@ -11,6 +11,9 @@ import FeedbackButton from "@/components/FeedbackButton";
 import PaperSwitcher from "@/components/PaperSwitcher";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { PlusCircle } from "lucide-react";
+import DashboardNav from "@/components/DashboardNav"; 
+
 
 const YearPaperCard = ({ year, paperType }: { year: number; paperType: string }) => {
   const navigate = useNavigate();
@@ -123,12 +126,13 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-      <header className="bg-white shadow">
+      {/* <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <BookOpen className="h-6 w-6 text-indigo-600" />
             <h1 className="text-xl font-bold">MaggicMock</h1>
           </div>
+          
           <div className="flex items-center space-x-4">
             <PaperSwitcher />
             {isAdmin && (
@@ -136,12 +140,17 @@ const Dashboard = () => {
                 <Shield className="h-4 w-4 mr-1" /> Admin
               </Button>
             )}
+            <Button variant="outline" size="sm" onClick={() => navigate("/create-test")}>
+                <PlusCircle className="h-4 w-4 mr-1" /> Create Test
+            </Button>
             <Button variant="outline" size="sm" onClick={() => signOut()}>
               <LogOut className="h-4 w-4 mr-1" /> Sign Out
             </Button>
           </div>
         </div>
-      </header>
+      </header> */}
+
+      <DashboardNav/>
 
       <main className="container mx-auto px-4 py-8">
         <section className="mb-12">
