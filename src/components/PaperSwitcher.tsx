@@ -55,7 +55,7 @@ const PaperSwitcher = () => {
         <>
           <ArrowLeftRight className="h-4 w-4" />
           <span className="hidden sm:inline">Switch to</span>
-          {paperType === "GATE CS" ? "GATE DA" : "GATE CS"}
+          {paperType === "GATE CS" ? "DA" : "CS"}
         </>
       )}
     </Button>
