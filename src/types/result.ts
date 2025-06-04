@@ -1,4 +1,3 @@
-
 import { Option, Question, QuestionType } from "@/lib/types";
 
 export interface SubjectPerformance {
@@ -25,6 +24,7 @@ export interface QuestionDetail {
   subject: string;
   isCorrect: boolean;
   isSkipped: boolean;
+  imageUrl?: string;
 }
 
 export interface TestResult {
