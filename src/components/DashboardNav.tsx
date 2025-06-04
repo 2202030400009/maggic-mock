@@ -17,6 +17,7 @@ import { usePaper } from "@/context/PaperContext";
 import PaperSwitcher from "./PaperSwitcher";
 
 const DashboardNav = () => {
+  const { isAdmin } = useAuth();
   const [pending, setPending] = useState(false);
   const { currentUser, signOut } = useAuth();
   const { paperType } = usePaper();
@@ -62,7 +63,7 @@ const DashboardNav = () => {
               </Link>
               <Link 
                 to="/create-test"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                className={`px-3 py-2 rounded-md text-base font-medium ${
                   location.pathname === '/create-test' 
                     ? 'text-indigo-700 bg-indigo-50' 
                     : 'text-gray-600 hover:text-gray-900'
@@ -115,12 +116,14 @@ const DashboardNav = () => {
                     <span>Profile</span>
                   </DropdownMenuItem>
                 </Link>
-                <Link to="/admin">
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Database className="mr-2 h-4 w-4" />
-                    <span>Bhaiya Ji</span>
-                  </DropdownMenuItem>
-                </Link>
+                {isAdmin && (
+                  <Link to="/admin">
+                    <DropdownMenuItem className="cursor-pointer">
+                      <Database className="mr-2 h-4 w-4" />
+                      <span>Bhaiya Ji</span> {/* or Admin */}
+                    </DropdownMenuItem>
+                  </Link>
+                )}
                 <Link to="/create-test">
                   <DropdownMenuItem className="cursor-pointer">
                     <Book className="mr-2 h-4 w-4" />
@@ -146,3 +149,4 @@ const DashboardNav = () => {
 };
 
 export default DashboardNav;
+
