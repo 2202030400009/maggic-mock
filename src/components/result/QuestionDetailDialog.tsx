@@ -73,18 +73,6 @@ const QuestionDetailDialog = ({
           <div>
             <h3 className="font-medium">Question</h3>
             <p className="mt-1">{question.text}</p>
-            {question.imageUrl && isValidImageUrl(question.imageUrl) && (
-              <div className="mt-2">
-                <img 
-                  src={question.imageUrl} 
-                  alt="Question"
-                  className="max-w-full max-h-64 object-contain rounded border"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
           </div>
           
           {question.options && (question.type === "MCQ" || question.type === "MSQ") && (
