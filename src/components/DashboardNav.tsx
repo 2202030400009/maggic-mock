@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Book, LogOut, Settings, User, BookOpen, ArrowLeftRight, PlusCircle } from "lucide-react";
+import { Book, LogOut, Settings, User, BookOpen, ArrowLeftRight, PlusCircle, Database  } from "lucide-react";
 import { usePaper } from "@/context/PaperContext";
 import PaperSwitcher from "./PaperSwitcher";
 
@@ -113,6 +113,12 @@ const DashboardNav = () => {
                   <DropdownMenuItem className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
+                  </DropdownMenuItem>
+                </Link>
+                <Link to="/admin">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Database className="mr-2 h-4 w-4" />
+                    <span>Bhaiya Ji</span>
                   </DropdownMenuItem>
                 </Link>
                 <Link to="/create-test">
