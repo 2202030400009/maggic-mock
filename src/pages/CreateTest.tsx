@@ -19,6 +19,7 @@ import TestTypeSelection from "@/components/test/TestTypeSelection";
 import FullSyllabusForm from "@/components/test/FullSyllabusForm";
 import SubjectWiseForm from "@/components/test/SubjectWiseForm";
 import MultiSubjectForm from "@/components/test/MultiSubjectForm";
+import DashboardNav from "@/components/DashboardNav";
 
 const CreateTest = () => {
   const navigate = useNavigate();
@@ -184,15 +185,15 @@ const CreateTest = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-      <header className="bg-white shadow">
+      {/* <header className="bg-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold">Create Personalized Test</h1>
           <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
           </Button>
         </div>
-      </header>
-
+      </header> */}
+      <DashboardNav/>
       <main className="container mx-auto px-4 py-8">
         <Card className="max-w-2xl mx-auto">
           <CardContent className="pt-6">
