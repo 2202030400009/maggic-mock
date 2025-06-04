@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Book, LogOut, Settings, User, BookOpen, ArrowLeftRight } from "lucide-react";
+import { Book, LogOut, Settings, User, BookOpen, ArrowLeftRight, Plus } from "lucide-react";
 import { usePaper } from "@/context/PaperContext";
 import PaperSwitcher from "./PaperSwitcher";
 
@@ -90,6 +90,11 @@ const DashboardNav = () => {
             </div>
             
             <PaperSwitcher />
+            
+            <Button variant="outline" size="sm" onClick={() => window.location.href = "/create-test"}>
+              <Plus className="h-4 w-4 mr-1" />
+              Create Test
+            </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
